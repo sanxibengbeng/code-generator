@@ -66,6 +66,9 @@
         .code-links a {
             margin-right: 1rem;
         }
+        .model-selector {
+            margin-bottom: 1.5rem;
+        }
     </style>
 </head>
 <body>
@@ -79,6 +82,19 @@
             <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-primary"></i>
             <h4>Drag & Drop or Click to Upload</h4>
             <p>Supported formats: JPG, PNG, JPEG (Max size: 16MB)</p>
+            
+            <div class="model-selector">
+                <label for="model-select" class="form-label">Select AI Model:</label>
+                <select class="form-select" id="model-select">
+                    {% for model in models %}
+                    <option value="{{ model }}" {% if model == "claude-3-7-sonnet" %}selected{% endif %}>
+                        {{ model.replace("-", " ").title() }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Choose the model to generate your code</div>
+            </div>
+            
             <button class="btn btn-primary" id="upload-btn">Select Image</button>
             <input type="file" class="file-input" id="file-input" accept="image/jpeg,image/png,image/jpg">
             <div id="image-preview-container" class="mt-3"></div>
@@ -87,6 +103,7 @@
         <div class="progress-container" id="progress-container">
             <h4>Processing Image</h4>
             <p class="task-description" id="current-task">Preparing image...</p>
+            <p class="text-muted">Using model: <span id="model-display" class="fw-bold"></span></p>
             <div class="progress" style="height: 25px;">
                 <div class="progress-bar progress-bar-striped progress-bar-animated" 
                      id="progress-bar" 
@@ -103,6 +120,7 @@
                 <i class="fas fa-check-circle"></i> Code generation complete!
             </div>
             <h4>Generated Files</h4>
+            <p class="text-muted">Generated using: <span id="result-model-display" class="fw-bold"></span></p>
             <div class="code-links">
                 <a href="#" id="html-link" class="btn btn-outline-primary" target="_blank">
                     <i class="fab fa-html5"></i> View HTML
@@ -143,6 +161,9 @@
             const htmlLink = document.getElementById('html-link');
             const cssLink = document.getElementById('css-link');
             const jsLink = document.getElementById('js-link');
+            const modelSelect = document.getElementById('model-select');
+            const modelDisplay = document.getElementById('model-display');
+            const resultModelDisplay = document.getElementById('result-model-display');
             
             // Handle drag and drop events
             uploadContainer.addEventListener('dragover', function(e) {
@@ -220,9 +241,15 @@
                 uploadContainer.style.display = 'none';
                 progressContainer.style.display = 'block';
                 
+                // Display selected model
+                const selectedModel = modelSelect.value;
+                const formattedModelName = selectedModel.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                modelDisplay.textContent = formattedModelName;
+                
                 // Create form data
                 const formData = new FormData();
                 formData.append('file', file);
+                formData.append('model', selectedModel);
                 
                 // Send file to server
                 fetch('/upload', {
@@ -257,6 +284,13 @@
                             
                             // Update task description
                             currentTask.textContent = data.task;
+                            
+                            // Update model display
+                            if (data.model) {
+                                const formattedModelName = data.model.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                modelDisplay.textContent = formattedModelName;
+                                resultModelDisplay.textContent = formattedModelName;
+                            }
                             
                             // Check if complete
                             if (data.complete) {

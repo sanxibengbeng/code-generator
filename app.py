@@ -22,6 +22,19 @@ progress_percentage = 0
 is_processing = False
 processing_complete = False
 error_message = None
+selected_model = "claude-3-7-sonnet"  # Default model
+
+# Model configurations
+MODEL_CONFIGS = {
+    "claude-3-5-sonnet": {
+        "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+        "max_tokens": 4096
+    },
+    "claude-3-7-sonnet": {
+        "model_id": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+        "max_tokens": 4096
+    }
+}
 
 # Initialize Bedrock client
 bedrock_runtime = boto3.client(
@@ -65,8 +78,8 @@ def save_generated_files(html_content, css_content, js_content):
     return file_paths
 
 def process_image(image_path):
-    """Process the image with Bedrock Claude 3.7 Sonnet"""
-    global is_processing, processing_complete, error_message
+    """Process the image with selected Bedrock Claude model"""
+    global is_processing, processing_complete, error_message, selected_model
     
     try:
         update_progress("Preparing image for processing", 10)
@@ -75,6 +88,12 @@ def process_image(image_path):
         base64_image = encode_image(image_path)
         
         update_progress("Connecting to AWS Bedrock", 20)
+        
+        # Get model configuration
+        model_config = MODEL_CONFIGS[selected_model]
+        model_id = model_config["model_id"]
+        max_tokens = model_config["max_tokens"]
+        model_display_name = selected_model.replace("-", " ").title()
         
         # Prepare the prompt for Claude
         prompt = f"""
@@ -108,12 +127,12 @@ def process_image(image_path):
         ```
         """
         
-        update_progress("Sending request to Claude 3.7 Sonnet", 30)
+        update_progress(f"Sending request to {model_display_name}", 30)
         
         # Create the request payload
         request_body = {
             "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": 4096,
+            "max_tokens": max_tokens,
             "messages": [
                 {
                     "role": "user",
@@ -138,11 +157,11 @@ def process_image(image_path):
         # Convert the request body to JSON
         request_body_json = json.dumps(request_body)
         
-        update_progress("Processing with Claude 3.7 Sonnet", 40)
+        update_progress(f"Processing with {model_display_name}", 40)
         
         # Invoke the model
         response = bedrock_runtime.invoke_model(
-            modelId='anthropic.claude-3-sonnet-20240229-v1:0',
+            modelId=model_id,
             body=request_body_json
         )
         
@@ -199,11 +218,11 @@ def process_image(image_path):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', models=list(MODEL_CONFIGS.keys()))
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    global is_processing, processing_complete, error_message
+    global is_processing, processing_complete, error_message, selected_model
     
     # Reset state
     is_processing = True
@@ -216,6 +235,12 @@ def upload_file():
         return jsonify({'error': 'No file part'})
     
     file = request.files['file']
+    
+    # Get selected model
+    if 'model' in request.form:
+        model_name = request.form['model']
+        if model_name in MODEL_CONFIGS:
+            selected_model = model_name
     
     if file.filename == '':
         is_processing = False
@@ -230,7 +255,7 @@ def upload_file():
         thread = threading.Thread(target=process_image, args=(file_path,))
         thread.start()
         
-        return jsonify({'message': 'Processing started'})
+        return jsonify({'message': 'Processing started', 'model': selected_model})
 
 @app.route('/progress')
 def get_progress():
@@ -239,7 +264,8 @@ def get_progress():
         'percentage': progress_percentage,
         'isProcessing': is_processing,
         'complete': processing_complete,
-        'error': error_message
+        'error': error_message,
+        'model': selected_model
     })
 
 @app.route('/result')
