@@ -1,62 +1,99 @@
 # UI to Code Generator
 
-This project uses AWS Bedrock with Anthropic Claude 3.7 Sonnet to generate responsive web code from UI design images.
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.8+-blue.svg" alt="Python Version">
+  <img src="https://img.shields.io/badge/AWS-Bedrock-orange.svg" alt="AWS Bedrock">
+  <img src="https://img.shields.io/badge/Claude-3.7%20Sonnet-purple.svg" alt="Claude 3.7 Sonnet">
+  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
+</p>
 
-## Project Overview
+Transform UI design images into responsive web code using AWS Bedrock with Anthropic Claude 3.7 Sonnet.
 
-This tool allows you to:
-1. Upload a UI design image through a web interface
-2. Process the image using AWS Bedrock's Claude 3.7 Sonnet model
-3. Generate responsive HTML, CSS, and JavaScript code based on the image
-4. Save the generated code to local files
-5. Track the progress of code generation in real-time
+<p align="center">
+  <a href="README_zh.md">中文文档</a>
+</p>
 
-## Project Structure
+## 🚀 Features
 
-- `app.py` - Main Python application with Flask server and AWS Bedrock integration
-- `templates/index.html` - Web interface for image upload and progress tracking
-- `uploads/` - Directory for storing uploaded images
-- `generated/` - Directory for storing generated code files
-  - `index.html` - Generated HTML file
-  - `styles.css` - Generated CSS file
-  - `script.js` - Generated JavaScript file
-- `requirements.txt` - Python dependencies
+- Upload UI design images through a user-friendly web interface
+- Process images using AWS Bedrock's Claude 3.7 Sonnet model
+- Generate responsive HTML, CSS, and JavaScript code based on the image
+- Save generated code to local files automatically
+- Track code generation progress in real-time
 
-## Technologies Used
+## 📋 Requirements
 
-- **Python** - Backend implementation
-- **Flask** - Web server framework
-- **AWS Bedrock** - AI service for image processing and code generation
-- **Anthropic Claude 3.7 Sonnet** - Large language model for code generation
-- **Bootstrap 5** - Frontend UI components
-- **Font Awesome** - Icons for the interface
+- Python 3.8+
+- AWS account with Bedrock access
+- AWS credentials configured locally
 
-## Setup and Installation
+## 🛠️ Installation
 
-1. Install the required Python packages:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/ui-to-code-generator.git
+   cd ui-to-code-generator
    ```
+
+2. Install the required Python packages:
+   ```bash
    pip install -r requirements.txt
    ```
 
-2. Ensure you have AWS credentials configured with access to Bedrock in the us-east-1 region
+3. Ensure you have AWS credentials configured with access to Bedrock in the us-east-1 region.
 
-3. Run the application:
-   ```
+## 🔧 Project Structure
+
+```
+ui-to-code-generator/
+├── app.py                 # Main Python application with Flask server
+├── templates/             # HTML templates
+│   └── index.html         # Web interface for image upload
+├── uploads/               # Directory for storing uploaded images
+├── generated/             # Directory for storing generated code files
+│   ├── index.html         # Generated HTML file
+│   ├── styles.css         # Generated CSS file
+│   └── script.js          # Generated JavaScript file
+└── requirements.txt       # Python dependencies
+```
+
+## 🚀 Usage
+
+1. Run the application:
+   ```bash
    python app.py
    ```
 
-4. Open your browser and navigate to `http://127.0.0.1:5000`
+2. Open your browser and navigate to `http://127.0.0.1:5000`
 
-## How to Use
+3. Upload a UI design image using the web interface
 
-1. Upload a UI design image using the web interface
-2. Click "Generate Code" to start the process
-3. Monitor the progress in real-time
-4. Once complete, view or download the generated HTML, CSS, and JavaScript files
+4. Click "Generate Code" to start the process
 
-## Notes
+5. Monitor the progress in real-time
+
+6. Once complete, view or download the generated HTML, CSS, and JavaScript files
+
+## 🔍 Technical Details
+
+- **Backend**: Python with Flask web framework
+- **AI Service**: AWS Bedrock with Anthropic Claude 3.7 Sonnet
+- **Frontend**: HTML, CSS, JavaScript with Bootstrap 5
+- **Icons**: Font Awesome
+
+## 📝 Notes
 
 - The generated code uses Bootstrap 5 for responsive layout
 - The tool is designed for frontend code generation only
 - Maximum upload size is 16MB
 - Supported image formats: JPG, PNG
+- The application uses threading to prevent blocking during processing
+- Progress updates are provided through a polling mechanism
+
+## 🤝 Contributing
+
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/yourusername/ui-to-code-generator/issues).
+
+## 📄 License
+
+This project is [MIT](LICENSE) licensed.
