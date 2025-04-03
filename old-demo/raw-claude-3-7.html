@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>亚马逊云科技中国</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        
+        body {
+            color: #232f3e;
+            line-height: 1.5;
+        }
+        
+        /* Header Styles */
+        .top-bar {
+            background-color: #232f3e;
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            height: 30px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo img {
+            height: 100%;
+        }
+        
+        .top-nav {
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+        }
+        
+        .top-nav a {
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        /* Main Navigation */
+        .main-nav {
+            background-color: #232f3e;
+            padding: 10px 20px;
+            border-top: 1px solid #3a4553;
+        }
+        
+        .main-nav ul {
+            display: flex;
+            list-style: none;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .main-nav li a {
+            color: white;
+            text-decoration: none;
+            font-size: 15px;
+            white-space: nowrap;
+        }
+        
+        /* Secondary Navigation */
+        .secondary-nav {
+            background-color: #f8f9fa;
+            padding: 10px 20px;
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .secondary-nav a {
+            color: #232f3e;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        
+        /* Promotion Banner */
+        .promo-banner {
+            background-color: #9467ff;
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .promo-button {
+            background-color: white;
+            color: #9467ff;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        /* Breadcrumb */
+        .breadcrumb {
+            padding: 15px 20px;
+            background-color: #eaecf3;
+        }
+        
+        .breadcrumb a {
+            color: #232f3e;
+            text-decoration: none;
+        }
+        
+        /* Main Content */
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .page-title {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+        
+        .page-description {
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+            overflow-x: auto;
+        }
+        
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            position: relative;
+            white-space: nowrap;
+        }
+        
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background-color: #232f3e;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Section */
+        .section-heading {
+            font-size: 28px;
+            margin-bottom: 20px;
+            margin-top: 40px;
+        }
+        
+        /* Chat Button */
+        .chat-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background-color: #ff9900;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+        }
+        
+        /* Back to top button */
+        .back-to-top {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            background-color: #ff9900;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main-nav ul {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .top-nav {
+                display: none;
+            }
+            
+            .page-title {
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="top-bar">
+        <div class="logo">
+            亚马逊云科技
+        </div>
+        <div class="top-nav">
+            <a href="#">全球网站</a>
+            <a href="#">联系我们</a>
+            <a href="#">文档</a>
+            <a href="#">ICP备案</a>
+            <a href="#">中文 (简体)</a>
+            <a href="#">我的账户</a>
+            <a href="#" class="btn-register">免费注册</a>
+        </div>
+    </header>
+    
+    <!-- Main Navigation -->
+    <nav class="main-nav">
+        <ul>
+            <li><a href="#">关于我们</a></li>
+            <li><a href="#">产品</a></li>
+            <li><a href="#">解决方案</a></li>
+            <li><a href="#">定价</a></li>
+            <li><a href="#">客户支持</a></li>
+            <li><a href="#">合作伙伴网络</a></li>
+            <li><a href="#">Marketplace</a></li>
+            <li><a href="#">开发者</a></li>
+            <li><a href="#">初创公司</a></li>
+            <li><a href="#">活动与促销</a></li>
+            <li><a href="#"><i class="search-icon">🔍</i></a></li>
+        </ul>
+    </nav>
+    
+    <!-- Secondary Navigation -->
+    <nav class="secondary-nav">
+        <a href="#">亚马逊云科技中国</a>
+        <a href="#">亚马逊云科技常见问题</a>
+        <a href="#">产品动态</a>
+        <a href="#">中国区域服务列表</a>
+    </nav>
+    
+    <!-- Promotion Banner -->
+    <div class="promo-banner">
+        <span>企业算享服务现已推出! 现在申请即可享受云计算专家 1v1 定制 DeepSeek 企业级部署方案，实现高效数字化转型!</span>
+        <button class="promo-button">立即申请</button>
+    </div>
+    
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <a href="#">首页</a> › <span>关于亚马逊云科技</span>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <h1 class="page-title">关于亚马逊云科技</h1>
+        <p class="page-description">
+            亚马逊云科技 (Amazon Web Services) 是全球云计算的开创者和引领者，<br>
+            自 2006 年以来一直以技术创新、服务丰富、应用广泛而享誉世界。
+        </p>
+        
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab active" data-tab="why">为什么选择亚马逊?</div>
+            <div class="tab" data-tab="china">亚马逊云科技在中国</div>
+            <div class="tab" data-tab="global-business">全球优势</div>
+            <div class="tab" data-tab="resources">全球资源</div>
+            <div class="tab" data-tab="network">全球网络</div>
+            <div class="tab" data-tab="regions">中国区域</div>
+            <div class="tab" data-tab="more">了解更多</div>
+        </div>
+        
+        <!-- Tab Content -->
+        <div class="tab-content active" id="why">
+            <h2 class="section-heading">为什么选择亚马逊云科技?</h2>
+            <p>
+                亚马逊云科技一直不断扩展其服务组合以支持几乎云上任意工作负载，目前提供超过 240
+                项全功能的服务，涵盖计算、存储、数据库、网络、数据分析、机器学习与人工智能、物
+                联网、移动、安全、混合云、媒体，以及应用开发、部署与管理等方面；基础设施遍及 34
+                个地理区域的 108 个可用区，并已公布计划在墨西哥、新西兰、沙特阿拉伯和泰国等新建
+                6 个区域。
+            </p>
+        </div>
+        
+        <div class="tab-content" id="china" style="display: none;">
+            <h2 class="section-heading">亚马逊云科技在中国</h2>
+            <p>亚马逊云科技在中国提供多种服务，包括计算、存储、数据库等，以满足中国客户的云计算需求。</p>
+        </div>
+    </div>
+    
+    <!-- Chat Button -->
+    <div class="chat-button">
+        <span>💬</span>
+    </div>
+    
+    <!-- Back to top button -->
+    <div class="back-to-top">
+        <span>⬆</span>
+    </div>
+
+    <script>
+        // Tab functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabs = document.querySelectorAll('.tab');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Remove active class from all tabs
+                    tabs.forEach(t => t.classList.remove('active'));
+                    
+                    // Hide all tab contents
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.style.display = 'none';
+                    });
+                    
+                    // Add active class to clicked tab
+                    this.classList.add('active');
+                    
+                    // Show corresponding tab content
+                    const tabId = this.getAttribute('data-tab');
+                    document.getElementById(tabId).style.display = 'block';
+                });
+            });
+            
+            // Back to top functionality
+            const backToTopButton = document.querySelector('.back-to-top');
+            backToTopButton.addEventListener('click', function() {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+            
+            // Chat button functionality
+            const chatButton = document.querySelector('.chat-button');
+            chatButton.addEventListener('click', function() {
+                alert('客服聊天窗口将在这里打开');
+            });
+        });
+    </script>
+</body>
+</html>
