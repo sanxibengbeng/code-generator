@@ -20,6 +20,8 @@ Transform UI design images into responsive web code using AWS Bedrock with Anthr
 - Generate responsive HTML, CSS, and JavaScript code based on the image
 - Save generated code to local files automatically
 - Track code generation progress in real-time
+- Support for both streaming and non-streaming API modes
+- Display processing metrics (tokens, time, chunks)
 
 ## 📋 Requirements
 
@@ -64,15 +66,19 @@ ui-to-code-generator/
    python app.py
    ```
 
-2. Open your browser and navigate to `http://127.0.0.1:5000`
+2. Open your browser and navigate to `http://127.0.0.1:8080`
 
 3. Upload a UI design image using the web interface
 
-4. Click "Generate Code" to start the process
+4. Select your preferred model and processing mode (streaming or non-streaming)
 
-5. Monitor the progress in real-time
+5. Click "Generate Code" to start the process
 
-6. Once complete, view or download the generated HTML, CSS, and JavaScript files
+6. Monitor the progress in real-time
+
+7. Once complete, view or download the generated HTML, CSS, and JavaScript files
+
+8. Review processing metrics (tokens, time, etc.)
 
 ## 🔍 Technical Details
 
@@ -80,6 +86,9 @@ ui-to-code-generator/
 - **AI Service**: AWS Bedrock with Anthropic Claude 3.7 Sonnet
 - **Frontend**: HTML, CSS, JavaScript with Bootstrap 5
 - **Icons**: Font Awesome
+- **API Modes**: 
+  - Streaming: Real-time updates with dynamic progress
+  - Non-streaming: Single request/response pattern
 
 ## 📝 Notes
 
@@ -89,6 +98,7 @@ ui-to-code-generator/
 - Supported image formats: JPG, PNG
 - The application uses threading to prevent blocking during processing
 - Progress updates are provided through a polling mechanism
+- Streaming mode provides more granular progress updates but may be slower for some models
 
 ## 🤝 Contributing
 
