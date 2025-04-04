@@ -33,16 +33,27 @@ Transform UI design images into responsive web code using AWS Bedrock with Anthr
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/ui-to-code-generator.git
-   cd ui-to-code-generator
+   git clone https://github.com/sanxibengbeng/code-generator.git
+   cd code-generator
    ```
 
-2. Install the required Python packages:
+2. Set up the Python virtual environment and install dependencies:
    ```bash
-   pip install -r requirements.txt
+   make env
    ```
+   This command creates a virtual environment, upgrades pip, and installs all required packages.
 
-3. Ensure you have AWS credentials configured with access to Bedrock in the us-east-1 region.
+3. Configure AWS credentials with access to Bedrock in the us-east-1 region:
+   ```bash
+   aws configure
+   ```
+   You'll need to provide:
+   - AWS Access Key ID
+   - AWS Secret Access Key
+   - Default region name (use `us-east-1` for Bedrock)
+   - Default output format (json recommended)
+
+   Make sure your AWS account has access to the Bedrock service and the Claude models.
 
 ## 🔧 Project Structure
 
@@ -63,7 +74,7 @@ ui-to-code-generator/
 
 1. Run the application:
    ```bash
-   python app.py
+   make run
    ```
 
 2. Open your browser and navigate to `http://127.0.0.1:8080`
@@ -102,7 +113,7 @@ ui-to-code-generator/
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/yourusername/ui-to-code-generator/issues).
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/sanxibengbeng/code-generator/issues).
 
 ## 📄 License
 

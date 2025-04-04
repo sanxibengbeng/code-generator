@@ -115,7 +115,20 @@ def extract_code_from_text(full_text, debug_file=None):
             debug_file.write(f"HTML end position: {html_end}\n")
         
         if html_end != -1:
-            html_code = full_text[html_start + 6:html_end].strip()
+            # Extract HTML and ensure we're starting with <!DOCTYPE or <html
+            raw_html = full_text[html_start + 6:html_end].strip()
+            
+            # Clean up any characters before <!DOCTYPE or <html
+            doctype_pos = raw_html.find("<!DOCTYPE")
+            html_tag_pos = raw_html.find("<html")
+            
+            if doctype_pos != -1:
+                html_code = raw_html[doctype_pos:]
+            elif html_tag_pos != -1:
+                html_code = raw_html[html_tag_pos:]
+            else:
+                html_code = raw_html
+                
             if debug_file:
                 debug_file.write(f"Extracted HTML length: {len(html_code)}\n")
                 debug_file.write(f"HTML snippet: {html_code[:100]}...\n")
