@@ -1,0 +1,317 @@
+/* Main Styles */
+body {
+    font-family: "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    color: #ffffff;
+    overflow-x: hidden;
+}
+
+.knowledge-base-container {
+    background-color: #0c0c18;
+    background-image: linear-gradient(45deg, #0c0c18 0%, #221a35 100%);
+    min-height: 100vh;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Left Section Styles */
+.left-content {
+    padding: 40px 50px;
+    height: 100%;
+}
+
+.main-title {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 60px;
+    color: #ffffff;
+}
+
+.section {
+    margin-bottom: 40px;
+}
+
+.section-title {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+    display: block;
+}
+
+.business-title {
+    color: #f0e68c;
+}
+
+.tech-title {
+    color: #70c1b3;
+}
+
+.section-content {
+    font-size: 1.2rem;
+    line-height: 1.8;
+    color: #ffffff;
+    margin-left: 15px;
+}
+
+/* Vertical Separator */
+.vertical-separator {
+    width: 5px;
+    height: 100%;
+    background: linear-gradient(to bottom, rgba(255,140,0,0.7), rgba(255,140,0,0.3));
+    position: absolute;
+    left: 41.66%;
+    z-index: 1;
+}
+
+/* Right Section Styles */
+.right-content {
+    padding: 40px 30px;
+    position: relative;
+}
+
+.tech-principle {
+    font-size: 1.8rem;
+    color: #ffffff;
+    margin-bottom: 40px;
+    text-align: center;
+}
+
+.knowledge-diagram {
+    position: relative;
+}
+
+.diagram-box {
+    border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 15px;
+    position: relative;
+}
+
+.diagram-title {
+    font-size: 1.2rem;
+    color: #ffffff;
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.knowledge-flow {
+    position: relative;
+    padding: 10px;
+}
+
+/* Flow Items */
+.flow-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 15px;
+    position: relative;
+}
+
+.icon-box {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+
+.document {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+.s3 {
+    background-color: #70a663;
+    color: #ffffff;
+}
+
+.opensearch {
+    background-color: #6364b6;
+    color: #ffffff;
+}
+
+.embedding {
+    background-color: #13b5a8;
+    color: #ffffff;
+}
+
+.pe {
+    background-color: #d1e1dd;
+    color: #333333;
+}
+
+.claude {
+    background-color: #13b5a8;
+    color: #ffffff;
+}
+
+.users {
+    background-color: #ffffff;
+    color: #333333;
+}
+
+.icon-label {
+    font-size: 0.9rem;
+    text-align: center;
+    color: #ffffff;
+}
+
+/* Flow Group for First Row */
+.flow-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.flow-arrow {
+    color: #4d94ff;
+    font-size: 20px;
+    margin: 0 15px;
+}
+
+/* Complex Flow Styles */
+.complex-flow {
+    position: relative;
+    margin-top: 30px;
+    margin-bottom: 30px;
+    min-height: 200px;
+}
+
+.right-aligned {
+    position: absolute;
+    right: 5%;
+    top: 0;
+}
+
+.mid-top {
+    position: absolute;
+    left: 40%;
+    top: 35%;
+}
+
+.right-bottom {
+    position: absolute;
+    right: 20%;
+    bottom: 0;
+}
+
+.flow-label {
+    font-size: 0.8rem;
+    color: #73acd6;
+    position: absolute;
+}
+
+.knn {
+    left: 30%;
+    top: 50%;
+}
+
+.search-result {
+    right: 10%;
+    top: 30%;
+}
+
+/* Claude Section */
+.claude-section {
+    position: relative;
+    margin-top: 20px;
+    text-align: right;
+    margin-right: 25%;
+}
+
+/* User Consultation Section */
+.user-section {
+    position: relative;
+    margin-top: -60px;
+    margin-left: 10px;
+}
+
+.consultation-title {
+    color: #e9944b;
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+}
+
+.user-label {
+    font-size: 0.9rem;
+    color: #ffffff;
+    margin-top: 5px;
+    text-align: center;
+}
+
+/* Responsive styles */
+@media (max-width: 992px) {
+    .vertical-separator {
+        display: none;
+    }
+    
+    .left-content, .right-content {
+        padding: 20px;
+    }
+    
+    .main-title {
+        font-size: 1.7rem;
+        margin-bottom: 30px;
+    }
+    
+    .section-title {
+        font-size: 1.3rem;
+    }
+    
+    .tech-principle {
+        font-size: 1.5rem;
+        margin: 20px 0;
+    }
+    
+    .complex-flow {
+        min-height: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .flow-group {
+        flex-direction: column;
+    }
+    
+    .flow-arrow {
+        transform: rotate(90deg);
+        margin: 10px 0;
+    }
+    
+    .complex-flow {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: auto;
+    }
+    
+    .right-aligned, .mid-top, .right-bottom {
+        position: relative;
+        top: auto;
+        right: auto;
+        bottom: auto;
+        left: auto;
+        margin: 15px 0;
+    }
+    
+    .flow-label {
+        position: relative;
+        margin: 10px 0;
+        text-align: center;
+    }
+    
+    .claude-section {
+        margin-top: 30px;
+        text-align: center;
+        margin-right: 0;
+    }
+    
+    .user-section {
+        margin-top: 30px;
+        text-align: center;
+    }
+}

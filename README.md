@@ -39,6 +39,7 @@ Transform UI design images into responsive web code using AWS Bedrock with Anthr
 
 2. Set up the Python virtual environment and install dependencies:
    ```bash
+   cd src
    make env
    ```
    This command creates a virtual environment, upgrades pip, and installs all required packages.
@@ -59,21 +60,28 @@ Transform UI design images into responsive web code using AWS Bedrock with Anthr
 
 ```
 ui-to-code-generator/
-├── app.py                 # Main Python application with Flask server
-├── templates/             # HTML templates
-│   └── index.html         # Web interface for image upload
-├── uploads/               # Directory for storing uploaded images
-├── generated/             # Directory for storing generated code files
-│   ├── index.html         # Generated HTML file
-│   ├── styles.css         # Generated CSS file
-│   └── script.js          # Generated JavaScript file
-└── requirements.txt       # Python dependencies
+├── src/                   # Source code directory
+│   ├── app.py             # Main Python application with Flask server
+│   ├── templates/         # HTML templates
+│   │   └── index.html     # Web interface for image upload
+│   ├── uploads/           # Directory for storing uploaded images
+│   ├── generated/         # Directory for storing generated code files
+│   │   ├── index.html     # Generated HTML file
+│   │   ├── styles.css     # Generated CSS file
+│   │   └── script.js      # Generated JavaScript file
+│   ├── Makefile           # Make commands for project management
+│   └── requirements.txt   # Python dependencies
+├── cdk/                   # AWS CDK deployment code
+└── web-design.png         # Sample design image
 ```
 
 ## 🚀 Usage
 
+### Local Development
+
 1. Run the application:
    ```bash
+   cd src
    make run
    ```
 
@@ -91,6 +99,29 @@ ui-to-code-generator/
 
 8. Review processing metrics (tokens, time, etc.)
 
+### AWS Deployment
+
+1. Navigate to the CDK directory:
+   ```bash
+   cd cdk
+   ```
+
+2. Install CDK dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Deploy to AWS:
+   ```bash
+   ./deploy.sh
+   ```
+
+4. After deployment, access the application using the LoadBalancer DNS provided in the outputs.
+
+5. Log in with the default admin credentials:
+   - Username: `admin`
+   - Password: `admin@codegen`
+
 ## 🔍 Technical Details
 
 - **Backend**: Python with Flask web framework
@@ -100,6 +131,11 @@ ui-to-code-generator/
 - **API Modes**: 
   - Streaming: Real-time updates with dynamic progress
   - Non-streaming: Single request/response pattern
+- **AWS Deployment**:
+  - EC2 instances in Auto Scaling Group
+  - Application Load Balancer
+  - Cognito authentication
+  - CDK for infrastructure as code
 
 ## 📝 Notes
 
