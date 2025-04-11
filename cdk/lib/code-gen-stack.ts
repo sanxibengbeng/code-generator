@@ -250,7 +250,7 @@ export class CodeGenStack extends cdk.Stack {
 
     // Output the ALB DNS name
     new cdk.CfnOutput(this, `${deploymentId}-AlbDnsName`, {
-      value: alb.loadBalancerDnsName,
+      value: `http://${alb.loadBalancerDnsName}`,
       description: `The DNS name of the ${deploymentId} load balancer`,
       exportName: `${deploymentId}-AlbDnsName`,
     });
@@ -275,7 +275,7 @@ export class CodeGenStack extends cdk.Stack {
     
     // Output the CloudFront distribution domain name
     new cdk.CfnOutput(this, `${deploymentId}-CloudFrontDomain`, {
-      value: distribution.distributionDomainName,
+      value: `https://${distribution.distributionDomainName}`,
       description: `The domain name of the ${deploymentId} CloudFront distribution`,
       exportName: `${deploymentId}-CloudFrontDomain`,
     });
