@@ -11,7 +11,7 @@ Q DEV CLI 的demo
 6. python 实现
 
 
-当前项目是一个用python实现的flask站点,站点主要的代码在src目录下，入口函数是app.py。学习这个项目的代码，并利用cdk将其部署到AWS。实现如下功能：
+当前项目是一个用python实现的flask站点,站点主要的代码在src目录下，入口函数是app.py。研究这个项目的代码，并利用cdk将其部署到AWS。实现如下功能：
 1. 实现CDK 部署代码，放到cdk目录下；
 2. 项目代码部署到一个EC2上，给EC2合适的权限以调用Bedrock 所有模型的推理能力；
 3. 通过如下路径对外暴露服务  alb -> asg ->ec2, asg里面默认1台ec2
