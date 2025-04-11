@@ -18,17 +18,12 @@ MODEL_CONFIGS = {
     },
     "claude-3-haiku": {
         "model_id": "anthropic.claude-3-haiku-20240307-v1:0",
-        "max_tokens": 4096,
+        "max_tokens": 8000,
         "description": "Claude 3 Haiku - Fast and cost-effective",
     },
-    "claude-3-sonnet": {
-        "model_id": "anthropic.claude-3-sonnet-20240229-v1:0",
-        "max_tokens": 4096,
-        "description": "Claude 3 Sonnet - Balanced performance and speed",
-    },
-    "claude-3-opus": {
-        "model_id": "anthropic.claude-3-opus-20240229-v1:0",
-        "max_tokens": 4096,
-        "description": "Claude 3 Opus - Most powerful model for complex tasks",
+    "claude-3-5-sonnet-v2": {
+        "model_id": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "max_tokens": 8000,
+        "description": "Claude 3-5 sonnet-v2",
     },
 }
