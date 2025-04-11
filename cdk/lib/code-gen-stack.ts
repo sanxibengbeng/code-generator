@@ -18,6 +18,10 @@ export class CodeGenStack extends cdk.Stack {
     // Create a unique identifier for this deployment
     const deploymentId = id.toLowerCase().replace(/[^a-z0-9]/g, '');
 
+    // Define CloudFront custom header for ALB access control
+    const cfCustomHeader = 'X-Origin-Verify';
+    const cfHeaderValue = `${deploymentId}-${Math.random().toString(36).substring(2, 10)}`;
+
     // Create a VPC
     const vpc = new ec2.Vpc(this, 'CodeGenVPC', {
       maxAzs: 2,
@@ -106,17 +110,21 @@ export class CodeGenStack extends cdk.Stack {
       'Allow HTTP traffic from ALB'
     );
 
-    // Allow HTTPS and HTTP traffic to ALB
+    // Since we can't directly use CloudFront prefix lists (they don't exist in all regions),
+    // we'll use a custom header check as the primary protection mechanism
+    // For now, we'll allow traffic from anywhere, but the ALB will only accept requests with the correct header
+    
+    // Allow HTTP and HTTPS traffic to ALB, but actual access will be controlled by the custom header
     albSecurityGroup.addIngressRule(
       ec2.Peer.anyIpv4(),
-      ec2.Port.tcp(443),
-      'Allow HTTPS traffic from internet'
+      ec2.Port.tcp(80),
+      'Allow HTTP traffic to ALB (header verification will restrict access)'
     );
     
     albSecurityGroup.addIngressRule(
       ec2.Peer.anyIpv4(),
-      ec2.Port.tcp(80),
-      'Allow HTTP traffic from internet'
+      ec2.Port.tcp(443),
+      'Allow HTTPS traffic to ALB (header verification will restrict access)'
     );
 
     // Create user data for EC2 instances
@@ -222,21 +230,27 @@ export class CodeGenStack extends cdk.Stack {
       loadBalancerName: `${deploymentId}-alb`,
     });
 
-    // Create HTTP listener
+    // Create HTTP listener with custom header verification
     const httpListener = alb.addListener(`${deploymentId}-HttpListener`, {
       port: 80,
       protocol: elbv2.ApplicationProtocol.HTTP,
-      defaultAction: elbv2.ListenerAction.fixedResponse(200, {
-        contentType: 'text/html',
-        messageBody: '<html><body><h1>Hello from Code Generator!</h1></body></html>',
+      // Default action is to return 403 Forbidden
+      defaultAction: elbv2.ListenerAction.fixedResponse(403, {
+        contentType: 'text/plain',
+        messageBody: 'Direct access forbidden',
       }),
     });
 
-    // Add target group to HTTP listener
+    // Create a condition to check for the custom header from CloudFront
+    const cfHeaderCondition = elbv2.ListenerCondition.httpHeader(cfCustomHeader, [cfHeaderValue]);
+
+    // Add target group to HTTP listener with condition to check for CloudFront header
     const targetGroup = httpListener.addTargets(`${deploymentId}-TargetGroup`, {
       port: 8080,
       protocol: elbv2.ApplicationProtocol.HTTP,
       targets: [asg],
+      conditions: [cfHeaderCondition], // Only forward requests with the correct header
+      priority: 10, // Give this rule priority over the default rule
       healthCheck: {
         path: '/',
         interval: cdk.Duration.seconds(30),
@@ -255,11 +269,14 @@ export class CodeGenStack extends cdk.Stack {
       exportName: `${deploymentId}-AlbDnsName`,
     });
     
-    // Create CloudFront distribution
+    // Create CloudFront distribution with custom origin header
     const distribution = new cloudfront.Distribution(this, 'CloudFrontDistribution', {
       defaultBehavior: {
         origin: new origins.LoadBalancerV2Origin(alb, {
           protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY,
+          customHeaders: {
+            [cfCustomHeader]: cfHeaderValue, // Add a custom header that ALB will check
+          },
         }),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
