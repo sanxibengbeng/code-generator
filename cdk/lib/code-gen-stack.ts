@@ -7,6 +7,8 @@ import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import { RemovalPolicy } from 'aws-cdk-lib';
 
 export class CodeGenStack extends cdk.Stack {
@@ -197,7 +199,18 @@ export class CodeGenStack extends cdk.Stack {
       healthCheck: autoscaling.HealthCheck.elb({
         grace: cdk.Duration.minutes(5),
       }),
-      autoScalingGroupName: `${deploymentId}-asg-${new Date().getTime()}`,
+      autoScalingGroupName: `${deploymentId}-asg`,
+      // Configure blue/green deployment options
+      updatePolicy: autoscaling.UpdatePolicy.rollingUpdate({
+        maxBatchSize: 1,
+        minInstancesInService: 1,
+        pauseTime: cdk.Duration.minutes(5),
+        waitOnResourceSignals: true,
+        suspendProcesses: [
+          autoscaling.ScalingProcess.ALARM_NOTIFICATION,
+          autoscaling.ScalingProcess.SCHEDULED_ACTIONS
+        ]
+      })
     });
 
     // Create Application Load Balancer
@@ -240,6 +253,31 @@ export class CodeGenStack extends cdk.Stack {
       value: alb.loadBalancerDnsName,
       description: `The DNS name of the ${deploymentId} load balancer`,
       exportName: `${deploymentId}-AlbDnsName`,
+    });
+    
+    // Create CloudFront distribution
+    const distribution = new cloudfront.Distribution(this, 'CloudFrontDistribution', {
+      defaultBehavior: {
+        origin: new origins.LoadBalancerV2Origin(alb, {
+          protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY,
+        }),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+        cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+        originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
+      },
+      priceClass: cloudfront.PriceClass.PRICE_CLASS_100, // Use only North America and Europe
+      enabled: true,
+      comment: `CloudFront distribution for ${deploymentId} Code Generator`,
+      defaultRootObject: '/',
+      enableLogging: true,
+    });
+    
+    // Output the CloudFront distribution domain name
+    new cdk.CfnOutput(this, `${deploymentId}-CloudFrontDomain`, {
+      value: distribution.distributionDomainName,
+      description: `The domain name of the ${deploymentId} CloudFront distribution`,
+      exportName: `${deploymentId}-CloudFrontDomain`,
     });
     
     // Add tags to all resources

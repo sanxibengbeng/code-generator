@@ -249,6 +249,9 @@
             const processingTime = document.getElementById('processing-time');
             const streamingChunks = document.getElementById('streaming-chunks');
             
+            // Store the current session ID
+            let currentSessionId = null;
+            
             // Handle drag and drop events
             uploadContainer.addEventListener('dragover', function(e) {
                 e.preventDefault();
@@ -357,8 +360,11 @@
                         showError(data.error);
                         resetUI();
                     } else {
+                        // Store the session ID
+                        currentSessionId = data.session_id;
+                        
                         // Start polling for progress
-                        pollProgress();
+                        pollProgress(currentSessionId);
                     }
                 })
                 .catch(error => {
@@ -367,47 +373,54 @@
                 });
             }
             
-            function pollProgress() {
+            function pollProgress(sessionId) {
                 const interval = setInterval(function() {
-                    fetch('/progress')
+                    fetch(`/progress/${sessionId}`)
                         .then(response => response.json())
                         .then(data => {
+                            if (data.error) {
+                                clearInterval(interval);
+                                showError('Session error: ' + data.error);
+                                resetUI();
+                                return;
+                            }
+                            
                             // Update progress bar
-                            progressBar.style.width = data.percentage + '%';
-                            progressBar.setAttribute('aria-valuenow', data.percentage);
-                            progressBar.textContent = data.percentage + '%';
+                            progressBar.style.width = data.progress_percentage + '%';
+                            progressBar.setAttribute('aria-valuenow', data.progress_percentage);
+                            progressBar.textContent = data.progress_percentage + '%';
                             
                             // Update task description
-                            currentTask.textContent = data.task;
+                            currentTask.textContent = data.current_task;
                             
                             // Update model display
-                            if (data.model) {
-                                const formattedModelName = data.model.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            if (data.selected_model) {
+                                const formattedModelName = data.selected_model.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                                 modelDisplay.textContent = formattedModelName;
                                 resultModelDisplay.textContent = formattedModelName;
                             }
                             
                             // Update streaming info if applicable
-                            if (data.streaming && data.streamingChunks > 0) {
-                                chunksCount.textContent = data.streamingChunks;
+                            if (data.use_streaming && data.streaming_chunks > 0) {
+                                chunksCount.textContent = data.streaming_chunks;
                                 streamingChunksInfo.style.display = 'block';
                             }
                             
                             // Check if complete
-                            if (data.complete) {
+                            if (data.processing_complete) {
                                 clearInterval(interval);
-                                getResults();
+                                getResults(sessionId);
                             }
                             
                             // Check if error
-                            if (data.error) {
+                            if (data.error_message) {
                                 clearInterval(interval);
-                                showError(data.error);
+                                showError(data.error_message);
                                 resetUI();
                             }
                             
                             // Check if no longer processing
-                            if (!data.isProcessing && !data.complete && !data.error) {
+                            if (!data.is_processing && !data.processing_complete && !data.error_message) {
                                 clearInterval(interval);
                                 showError('Processing stopped unexpectedly');
                                 resetUI();
@@ -421,8 +434,8 @@
                 }, 1000);
             }
             
-            function getResults() {
-                fetch('/result')
+            function getResults(sessionId) {
+                fetch(`/result/${sessionId}`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.error) {
@@ -472,6 +485,7 @@
                 fileInput.value = '';
                 streamingChunksInfo.style.display = 'none';
                 chunksCount.textContent = '0';
+                currentSessionId = null;
             }
         });
     </script>

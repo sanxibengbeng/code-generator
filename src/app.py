@@ -1,36 +1,28 @@
 import os
-import base64
 import json
 import time
-import boto3
+import base64
+import re
 import threading
 import botocore.config
 from flask import Flask, request, render_template, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
+from session_manager import SessionManager
 
 app = Flask(__name__, static_folder='generated')
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
 app.config['GENERATED_FOLDER'] = 'generated'
+app.secret_key = os.environ.get('SECRET_KEY', 'dev_secret_key_change_in_production')
 
-# Ensure directories exist
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['GENERATED_FOLDER'], exist_ok=True)
+# Initialize session manager
+session_manager = SessionManager(
+    upload_base_dir=app.config['UPLOAD_FOLDER'],
+    generated_base_dir=app.config['GENERATED_FOLDER']
+)
 
-# Global variables for tracking progress
-current_task = "Idle"
-progress_percentage = 0
-is_processing = False
-processing_complete = False
-error_message = None
-selected_model = "claude-3-7-sonnet"  # Default model
-use_streaming = False  # Default to non-streaming mode
-
-# Metrics tracking
-input_tokens = 0
-output_tokens = 0
-processing_time = 0
-streaming_chunks = 0
+# Default model
+DEFAULT_MODEL = "claude-3-7-sonnet"
 
 # Model configurations
 MODEL_CONFIGS = {
@@ -41,52 +33,58 @@ MODEL_CONFIGS = {
     "claude-3-7-sonnet": {
         "model_id": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
         "max_tokens": 40960
+    },
+    "claude-3-haiku": {
+        "model_id": "anthropic.claude-3-haiku-20240307-v1:0",
+        "max_tokens": 4096
     }
 }
 
-# Configure boto3 with increased timeouts
-boto_config = botocore.config.Config(
-    connect_timeout=120,    # 2 minutes
-    read_timeout=600,       # 10 minutes
-    retries={'max_attempts': 3, 'mode': 'standard'}
-)
-
-# Initialize Bedrock client with increased timeouts
-bedrock_runtime = boto3.client(
-    service_name='bedrock-runtime',
-    region_name='us-east-1',
-    config=boto_config
-)
+# Initialize AWS Bedrock client
+try:
+    import boto3
+    from botocore.config import Config
+    
+    # Configure the AWS SDK
+    config = Config(
+        retries={
+            'max_attempts': 10,
+            'mode': 'standard'
+        }
+    )
+    
+    # Create a Bedrock Runtime client
+    bedrock_runtime = boto3.client(
+        service_name='bedrock-runtime',
+        config=config
+    )
+except Exception as e:
+    print(f"Error initializing AWS Bedrock client: {str(e)}")
+    bedrock_runtime = None
 
 def encode_image(image_path):
-    """Encode image to base64 string"""
+    """Encode image to base64"""
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
-def update_progress(task, percentage):
-    """Update the global progress variables"""
-    global current_task, progress_percentage
-    current_task = task
-    progress_percentage = percentage
-
-def save_generated_files(html_content, css_content, js_content):
-    """Save the generated code to files"""
+def save_generated_files(session_id, html_content, css_content, js_content):
+    """Save the generated code to files in the session directory"""
     file_paths = {}
     
     # Save HTML
-    html_path = os.path.join(app.config['GENERATED_FOLDER'], 'index.html')
+    html_path = session_manager.get_generated_path(session_id, 'index.html')
     with open(html_path, 'w') as f:
         f.write(html_content)
     file_paths['html'] = html_path
     
     # Save CSS
-    css_path = os.path.join(app.config['GENERATED_FOLDER'], 'styles.css')
+    css_path = session_manager.get_generated_path(session_id, 'styles.css')
     with open(css_path, 'w') as f:
         f.write(css_content)
     file_paths['css'] = css_path
     
     # Save JS
-    js_path = os.path.join(app.config['GENERATED_FOLDER'], 'script.js')
+    js_path = session_manager.get_generated_path(session_id, 'script.js')
     with open(js_path, 'w') as f:
         f.write(js_content)
     file_paths['js'] = js_path
@@ -94,131 +92,69 @@ def save_generated_files(html_content, css_content, js_content):
     return file_paths
 
 def extract_code_from_text(full_text, debug_file=None):
-    """Extract HTML, CSS, and JS code from the model response text"""
+    """Extract HTML, CSS, and JavaScript code from the text response"""
+    # Initialize code blocks
     html_code = ""
     css_code = ""
     js_code = ""
     
-    # Log extraction attempt if debug file is provided
     if debug_file:
-        debug_file.write("\n=== CODE EXTRACTION ATTEMPT ===\n")
-        debug_file.write(f"Full text length: {len(full_text)}\n")
+        debug_file.write(f"Extracting code from text of length: {len(full_text)}\n")
     
-    # Extract HTML
-    html_start = full_text.find("```html")
-    if debug_file:
-        debug_file.write(f"HTML start position: {html_start}\n")
-    
-    if html_start != -1:
-        html_end = full_text.find("```", html_start + 6)
+    # Extract HTML code
+    html_match = re.search(r'```html\s*(.*?)\s*```', full_text, re.DOTALL)
+    if html_match:
+        html_code = html_match.group(1).strip()
         if debug_file:
-            debug_file.write(f"HTML end position: {html_end}\n")
-        
-        if html_end != -1:
-            # Extract HTML and ensure we're starting with <!DOCTYPE or <html
-            raw_html = full_text[html_start + 6:html_end].strip()
-            
-            # Clean up any characters before <!DOCTYPE or <html
-            doctype_pos = raw_html.find("<!DOCTYPE")
-            html_tag_pos = raw_html.find("<html")
-            
-            if doctype_pos != -1:
-                html_code = raw_html[doctype_pos:]
-            elif html_tag_pos != -1:
-                html_code = raw_html[html_tag_pos:]
-            else:
-                html_code = raw_html
-                
-            if debug_file:
-                debug_file.write(f"Extracted HTML length: {len(html_code)}\n")
-                debug_file.write(f"HTML snippet: {html_code[:100]}...\n")
+            debug_file.write(f"Found HTML code of length: {len(html_code)}\n")
+    elif debug_file:
+        debug_file.write("No HTML code found\n")
     
-    # Extract CSS
-    css_start = full_text.find("```css")
-    if debug_file:
-        debug_file.write(f"CSS start position: {css_start}\n")
-    
-    if css_start != -1:
-        css_end = full_text.find("```", css_start + 6)
+    # Extract CSS code
+    css_match = re.search(r'```css\s*(.*?)\s*```', full_text, re.DOTALL)
+    if css_match:
+        css_code = css_match.group(1).strip()
         if debug_file:
-            debug_file.write(f"CSS end position: {css_end}\n")
-        
-        if css_end != -1:
-            css_code = full_text[css_start + 6:css_end].strip()
-            if debug_file:
-                debug_file.write(f"Extracted CSS length: {len(css_code)}\n")
-                debug_file.write(f"CSS snippet: {css_code[:100]}...\n")
+            debug_file.write(f"Found CSS code of length: {len(css_code)}\n")
+    elif debug_file:
+        debug_file.write("No CSS code found\n")
     
-    # Extract JS - try both javascript and js tags
-    js_start = full_text.find("```javascript")
-    if js_start == -1:
-        js_start = full_text.find("```js")
-        js_prefix_len = 5  # Length of "```js"
-    else:
-        js_prefix_len = 14  # Length of "```javascript"
-    
-    if debug_file:
-        debug_file.write(f"JS start position: {js_start} (prefix length: {js_prefix_len})\n")
-    
-    if js_start != -1:
-        js_end = full_text.find("```", js_start + js_prefix_len)
+    # Extract JavaScript code
+    js_match = re.search(r'```javascript\s*(.*?)\s*```', full_text, re.DOTALL)
+    if js_match:
+        js_code = js_match.group(1).strip()
         if debug_file:
-            debug_file.write(f"JS end position: {js_end}\n")
-        
-        if js_end != -1:
-            js_code = full_text[js_start + js_prefix_len:js_end].strip()
-            if debug_file:
-                debug_file.write(f"Extracted JS length: {len(js_code)}\n")
-                debug_file.write(f"JS snippet: {js_code[:100]}...\n")
-    
-    # Alternative extraction for malformed code blocks
-    if (html_code == "" or css_code == "" or js_code == "") and debug_file:
-        debug_file.write("\n=== ATTEMPTING ALTERNATIVE EXTRACTION ===\n")
-        
-        # Look for sections even without proper markdown code blocks
-        sections = full_text.split("```")
-        if len(sections) > 1:
-            debug_file.write(f"Found {len(sections)} sections separated by ```\n")
-            
-            for i, section in enumerate(sections):
-                section_preview = section[:50].replace('\n', ' ')
-                debug_file.write(f"Section {i}: {section_preview}...\n")
-                
-                # Try to identify content by common patterns
-                if html_code == "" and ("html" in section.lower()[:20] or "<html" in section.lower() or "<!doctype" in section.lower()):
-                    html_code = section.strip()
-                    if "html" in section.lower()[:20]:
-                        html_code = html_code[section.lower().find("html") + 4:].strip()
-                    debug_file.write(f"Found potential HTML in section {i}\n")
-                
-                elif css_code == "" and "css" in section.lower()[:20]:
-                    css_code = section.strip()
-                    css_code = css_code[section.lower().find("css") + 3:].strip()
-                    debug_file.write(f"Found potential CSS in section {i}\n")
-                
-                elif js_code == "" and ("javascript" in section.lower()[:30] or "js" in section.lower()[:10]):
-                    js_code = section.strip()
-                    if "javascript" in section.lower()[:30]:
-                        js_code = js_code[section.lower().find("javascript") + 10:].strip()
-                    elif "js" in section.lower()[:10]:
-                        js_code = js_code[section.lower().find("js") + 2:].strip()
-                    debug_file.write(f"Found potential JS in section {i}\n")
+            debug_file.write(f"Found JavaScript code of length: {len(js_code)}\n")
+    elif debug_file:
+        debug_file.write("No JavaScript code found\n")
     
     return html_code, css_code, js_code
 
-def process_image_streaming(image_path):
+def process_image_streaming(session_id, image_path):
     """Process the image with selected Bedrock Claude model using streaming API"""
-    global is_processing, processing_complete, error_message, selected_model
-    global input_tokens, output_tokens, processing_time, streaming_chunks
+    # Get session status
+    status = session_manager.get_session_status(session_id)
+    selected_model = status.get('selected_model', DEFAULT_MODEL)
     
     try:
         start_time = time.time()
-        update_progress("Preparing image for streaming processing", 10)
+        session_manager.update_session_status(
+            session_id,
+            current_task="Preparing image for streaming processing",
+            progress_percentage=10,
+            is_processing=True,
+            processing_complete=False,
+            error_message=None
+        )
         
         # Encode image to base64
         base64_image = encode_image(image_path)
         
-        update_progress("Connecting to AWS Bedrock for streaming", 15)
+        session_manager.update_session_status(
+            session_id,
+            current_task="Connecting to AWS Bedrock for streaming",
+            progress_percentage=15
+        )
         
         # Get model configuration
         model_config = MODEL_CONFIGS[selected_model]
@@ -258,7 +194,11 @@ def process_image_streaming(image_path):
         ```
         """
         
-        update_progress(f"Sending streaming request to {model_display_name}", 20)
+        session_manager.update_session_status(
+            session_id,
+            current_task=f"Sending streaming request to {model_display_name}",
+            progress_percentage=20
+        )
         
         # Create the request payload
         request_body = {
@@ -288,7 +228,11 @@ def process_image_streaming(image_path):
         # Convert the request body to JSON
         request_body_json = json.dumps(request_body)
         
-        update_progress(f"Starting streaming with {model_display_name}", 25)
+        session_manager.update_session_status(
+            session_id,
+            current_task=f"Starting streaming with {model_display_name}",
+            progress_percentage=25
+        )
         
         try:
             # Invoke the model with streaming
@@ -305,7 +249,7 @@ def process_image_streaming(image_path):
             chunk_count = 0
             
             # Create a debug log file for chunks
-            debug_log_path = os.path.join(app.config['GENERATED_FOLDER'], 'streaming_debug.log')
+            debug_log_path = session_manager.get_generated_path(session_id, 'streaming_debug.log')
             with open(debug_log_path, 'w') as debug_file:
                 debug_file.write("=== STREAMING DEBUG LOG ===\n\n")
                 
@@ -332,11 +276,20 @@ def process_image_streaming(image_path):
                             # Extract token usage from message_delta
                             if 'output_tokens' in chunk_data.get('usage', {}):
                                 output_tokens = chunk_data['usage']['output_tokens']
+                                session_manager.update_session_status(
+                                    session_id,
+                                    output_tokens=output_tokens
+                                )
                         elif chunk_data.get('type') == 'message_stop' and 'amazon-bedrock-invocationMetrics' in chunk_data:
                             # Extract metrics from message_stop
                             metrics = chunk_data.get('amazon-bedrock-invocationMetrics', {})
                             input_tokens = metrics.get('inputTokenCount', 0)
                             output_tokens = metrics.get('outputTokenCount', 0)
+                            session_manager.update_session_status(
+                                session_id,
+                                input_tokens=input_tokens,
+                                output_tokens=output_tokens
+                            )
                         
                         # Log the extracted text
                         debug_file.write(f"Extracted text: {chunk_text}\n")
@@ -345,33 +298,60 @@ def process_image_streaming(image_path):
                         
                         # Update progress based on chunk count
                         chunk_count += 1
-                        streaming_chunks = chunk_count
+                        session_manager.update_session_status(
+                            session_id,
+                            streaming_chunks=chunk_count
+                        )
                         
                         # Dynamic progress update based on content received
                         # We'll estimate progress between 25-90% during streaming
-                        if "```html" in full_text and progress_percentage < 40:
-                            update_progress("Generating HTML code", 40)
+                        current_status = session_manager.get_session_status(session_id)
+                        current_progress = current_status['progress_percentage']
+                        
+                        if "```html" in full_text and current_progress < 40:
+                            session_manager.update_session_status(
+                                session_id,
+                                current_task="Generating HTML code",
+                                progress_percentage=40
+                            )
                             debug_file.write("HTML marker found\n")
-                        elif "```css" in full_text and progress_percentage < 60:
-                            update_progress("Generating CSS code", 60)
+                        elif "```css" in full_text and current_progress < 60:
+                            session_manager.update_session_status(
+                                session_id,
+                                current_task="Generating CSS code",
+                                progress_percentage=60
+                            )
                             debug_file.write("CSS marker found\n")
-                        elif "```javascript" in full_text and progress_percentage < 80:
-                            update_progress("Generating JavaScript code", 80)
+                        elif "```javascript" in full_text and current_progress < 80:
+                            session_manager.update_session_status(
+                                session_id,
+                                current_task="Generating JavaScript code",
+                                progress_percentage=80
+                            )
                             debug_file.write("JavaScript marker found\n")
                         else:
                             # Gradual progress update
                             current_progress = min(25 + (chunk_count * 65 / 100), 90)
-                            update_progress(f"Processing chunk {chunk_count}", int(current_progress))
+                            session_manager.update_session_status(
+                                session_id,
+                                current_task=f"Processing chunk {chunk_count}",
+                                progress_percentage=int(current_progress)
+                            )
                 
                 # Log the final full text
                 debug_file.write("\n=== FINAL FULL TEXT ===\n")
                 debug_file.write(full_text)
                 debug_file.write("\n\n=== END OF LOG ===\n")
             
-            update_progress("Extracting code from streaming response", 90)
+            session_manager.update_session_status(
+                session_id,
+                current_task="Extracting code from streaming response",
+                progress_percentage=90
+            )
             
             # Extract code from the full text with debug logging
-            with open(os.path.join(app.config['GENERATED_FOLDER'], 'extraction_debug.log'), 'w') as extract_debug:
+            extract_debug_path = session_manager.get_generated_path(session_id, 'extraction_debug.log')
+            with open(extract_debug_path, 'w') as extract_debug:
                 html_code, css_code, js_code = extract_code_from_text(full_text, extract_debug)
                 
                 # If extraction failed, try to create minimal files
@@ -448,7 +428,12 @@ app.mount('#app');
         
         except botocore.exceptions.ReadTimeoutError:
             error_message = "Read timeout occurred. The request took too long to complete. Try using a smaller image or the non-streaming mode."
-            update_progress(error_message, 0)
+            session_manager.update_session_status(
+                session_id,
+                current_task=error_message,
+                progress_percentage=0,
+                error_message=error_message
+            )
             
             # Create fallback files in case of timeout
             html_code = """
@@ -482,24 +467,41 @@ app.mount('#app');
             js_code = "// No JavaScript generated due to timeout"
             
             # Save these fallback files
-            file_paths = save_generated_files(html_code, css_code, js_code)
-            processing_complete = True
+            file_paths = save_generated_files(session_id, html_code, css_code, js_code)
+            session_manager.update_session_status(
+                session_id,
+                processing_complete=True
+            )
             return
             
-        update_progress("Saving generated files", 95)
+        session_manager.update_session_status(
+            session_id,
+            current_task="Saving generated files",
+            progress_percentage=95
+        )
         
         # Save the generated code to files
-        file_paths = save_generated_files(html_code, css_code, js_code)
+        file_paths = save_generated_files(session_id, html_code, css_code, js_code)
         
         # Calculate processing time
         processing_time = round(time.time() - start_time, 2)
         
-        update_progress("Processing complete", 100)
-        processing_complete = True
+        session_manager.update_session_status(
+            session_id,
+            current_task="Processing complete",
+            progress_percentage=100,
+            processing_complete=True,
+            processing_time=processing_time
+        )
         
     except Exception as e:
         error_message = str(e)
-        update_progress(f"Error in streaming: {str(e)}", 0)
+        session_manager.update_session_status(
+            session_id,
+            current_task=f"Error in streaming: {str(e)}",
+            progress_percentage=0,
+            error_message=error_message
+        )
         
         # Create fallback files in case of error
         html_code = f"""
@@ -527,24 +529,41 @@ app.mount('#app');
         js_code = "// No JavaScript generated due to error"
         
         # Save these fallback files
-        file_paths = save_generated_files(html_code, css_code, js_code)
-        processing_complete = True
+        file_paths = save_generated_files(session_id, html_code, css_code, js_code)
+        session_manager.update_session_status(
+            session_id,
+            processing_complete=True
+        )
     finally:
-        is_processing = False
-
-def process_image_non_streaming(image_path):
+        session_manager.update_session_status(
+            session_id,
+            is_processing=False
+        )
+def process_image_non_streaming(session_id, image_path):
     """Process the image with selected Bedrock Claude model using non-streaming API"""
-    global is_processing, processing_complete, error_message, selected_model
-    global input_tokens, output_tokens, processing_time
+    # Get session status
+    status = session_manager.get_session_status(session_id)
+    selected_model = status.get('selected_model', DEFAULT_MODEL)
     
     try:
         start_time = time.time()
-        update_progress("Preparing image for processing", 10)
+        session_manager.update_session_status(
+            session_id,
+            current_task="Preparing image for processing",
+            progress_percentage=10,
+            is_processing=True,
+            processing_complete=False,
+            error_message=None
+        )
         
         # Encode image to base64
         base64_image = encode_image(image_path)
         
-        update_progress("Connecting to AWS Bedrock", 20)
+        session_manager.update_session_status(
+            session_id,
+            current_task="Connecting to AWS Bedrock",
+            progress_percentage=20
+        )
         
         # Get model configuration
         model_config = MODEL_CONFIGS[selected_model]
@@ -584,7 +603,11 @@ def process_image_non_streaming(image_path):
         ```
         """
         
-        update_progress(f"Sending request to {model_display_name}", 30)
+        session_manager.update_session_status(
+            session_id,
+            current_task=f"Sending request to {model_display_name}",
+            progress_percentage=30
+        )
         
         # Create the request payload
         request_body = {
@@ -614,7 +637,11 @@ def process_image_non_streaming(image_path):
         # Convert the request body to JSON
         request_body_json = json.dumps(request_body)
         
-        update_progress(f"Processing with {model_display_name}", 40)
+        session_manager.update_session_status(
+            session_id,
+            current_task=f"Processing with {model_display_name}",
+            progress_percentage=40
+        )
         
         # Invoke the model
         response = bedrock_runtime.invoke_model(
@@ -622,7 +649,11 @@ def process_image_non_streaming(image_path):
             body=request_body_json
         )
         
-        update_progress("Parsing response", 70)
+        session_manager.update_session_status(
+            session_id,
+            current_task="Parsing response",
+            progress_percentage=70
+        )
         
         # Parse the response
         response_body = json.loads(response.get('body').read())
@@ -632,6 +663,11 @@ def process_image_non_streaming(image_path):
         if 'usage' in response_body:
             input_tokens = response_body['usage'].get('input_tokens', 0)
             output_tokens = response_body['usage'].get('output_tokens', 0)
+            session_manager.update_session_status(
+                session_id,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens
+            )
         
         # Extract text from the response
         full_text = ""
@@ -639,116 +675,215 @@ def process_image_non_streaming(image_path):
             if item.get('type') == 'text':
                 full_text += item.get('text', '')
         
-        update_progress("Extracting code from response", 80)
+        session_manager.update_session_status(
+            session_id,
+            current_task="Extracting code from response",
+            progress_percentage=80
+        )
         
         # Extract code from the full text
-        html_code, css_code, js_code = extract_code_from_text(full_text)
+        extract_debug_path = session_manager.get_generated_path(session_id, 'extraction_debug.log')
+        with open(extract_debug_path, 'w') as extract_debug:
+            html_code, css_code, js_code = extract_code_from_text(full_text, extract_debug)
+            
+            # If extraction failed, try to create minimal files
+            if not html_code:
+                extract_debug.write("\n=== CREATING FALLBACK HTML ===\n")
+                html_code = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generated UI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- The model failed to generate proper HTML code -->
+    <div class="container mt-5">
+        <div class="alert alert-warning">
+            <h4>Code Generation Issue</h4>
+            <p>The AI model failed to generate proper HTML code from the image.</p>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.2.26/dist/vue.global.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
+                """
+            
+            if not css_code:
+                extract_debug.write("\n=== CREATING FALLBACK CSS ===\n")
+                css_code = """
+/* Fallback CSS - The model failed to generate proper CSS */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f8f9fa;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+                """
+            
+            if not js_code:
+                extract_debug.write("\n=== CREATING FALLBACK JS ===\n")
+                js_code = """
+// Fallback JavaScript - The model failed to generate proper JS code
+console.log('UI to Code Generator - Fallback JavaScript');
+
+// Initialize Vue app
+const app = Vue.createApp({
+    data() {
+        return {
+            message: 'The AI model failed to generate proper JavaScript code.'
+        }
+    }
+});
+
+// Mount Vue app
+app.mount('#app');
+                """
         
-        update_progress("Saving generated files", 90)
+        session_manager.update_session_status(
+            session_id,
+            current_task="Saving generated files",
+            progress_percentage=90
+        )
         
         # Save the generated code to files
-        file_paths = save_generated_files(html_code, css_code, js_code)
+        file_paths = save_generated_files(session_id, html_code, css_code, js_code)
         
         # Calculate processing time
         processing_time = round(time.time() - start_time, 2)
         
-        update_progress("Processing complete", 100)
-        processing_complete = True
+        session_manager.update_session_status(
+            session_id,
+            current_task="Processing complete",
+            progress_percentage=100,
+            processing_complete=True,
+            processing_time=processing_time
+        )
         
     except Exception as e:
         error_message = str(e)
-        update_progress(f"Error: {str(e)}", 0)
+        session_manager.update_session_status(
+            session_id,
+            current_task=f"Error: {str(e)}",
+            progress_percentage=0,
+            error_message=error_message
+        )
     finally:
-        is_processing = False
+        session_manager.update_session_status(
+            session_id,
+            is_processing=False
+        )
 
-def process_image(image_path):
+def process_image(session_id, image_path):
     """Process the image with selected Bedrock Claude model"""
-    global use_streaming
+    # Get session status
+    status = session_manager.get_session_status(session_id)
+    use_streaming = status['use_streaming']
     
     if use_streaming:
-        process_image_streaming(image_path)
+        process_image_streaming(session_id, image_path)
     else:
-        process_image_non_streaming(image_path)
-
+        process_image_non_streaming(session_id, image_path)
 @app.route('/')
 def index():
     return render_template('index.html', models=list(MODEL_CONFIGS.keys()))
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    global is_processing, processing_complete, error_message, selected_model, use_streaming
-    global input_tokens, output_tokens, processing_time, streaming_chunks
-    
-    # Reset state
-    is_processing = True
-    processing_complete = False
-    error_message = None
-    input_tokens = 0
-    output_tokens = 0
-    processing_time = 0
-    streaming_chunks = 0
-    update_progress("Starting process", 0)
+    # Create a new session
+    session_id = session_manager.create_session()
     
     if 'file' not in request.files:
-        is_processing = False
         return jsonify({'error': 'No file part'})
     
     file = request.files['file']
     
     # Get selected model
+    selected_model = DEFAULT_MODEL
     if 'model' in request.form:
         model_name = request.form['model']
         if model_name in MODEL_CONFIGS:
             selected_model = model_name
     
     # Get streaming preference
+    use_streaming = False
     if 'streaming' in request.form:
         use_streaming = request.form['streaming'].lower() == 'true'
     
+    # Update session with selected options
+    session_manager.update_session_status(
+        session_id,
+        selected_model=selected_model,
+        use_streaming=use_streaming,
+        current_task="Starting process",
+        progress_percentage=0,
+        is_processing=True,
+        processing_complete=False,
+        error_message=None,
+        input_tokens=0,
+        output_tokens=0,
+        processing_time=0,
+        streaming_chunks=0
+    )
+    
     if file.filename == '':
-        is_processing = False
+        session_manager.update_session_status(
+            session_id,
+            is_processing=False,
+            error_message='No selected file'
+        )
         return jsonify({'error': 'No selected file'})
     
     if file:
         filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file_path = session_manager.get_upload_path(session_id, filename)
         file.save(file_path)
         
         # Start processing in a separate thread
-        thread = threading.Thread(target=process_image, args=(file_path,))
+        thread = threading.Thread(target=process_image, args=(session_id, file_path))
         thread.start()
         
         return jsonify({
             'message': 'Processing started', 
+            'session_id': session_id,
             'model': selected_model,
             'streaming': use_streaming
         })
 
-@app.route('/progress')
-def get_progress():
-    return jsonify({
-        'task': current_task,
-        'percentage': progress_percentage,
-        'isProcessing': is_processing,
-        'complete': processing_complete,
-        'error': error_message,
-        'model': selected_model,
-        'streaming': use_streaming,
-        'streamingChunks': streaming_chunks
-    })
+@app.route('/progress/<session_id>')
+def get_progress(session_id):
+    status = session_manager.get_session_status(session_id)
+    if status:
+        return jsonify(status)
+    else:
+        return jsonify({'error': 'Session not found'}), 404
 
-@app.route('/result')
-def get_result():
-    if processing_complete:
+@app.route('/result/<session_id>')
+def get_result(session_id):
+    status = session_manager.get_session_status(session_id)
+    
+    if not status:
+        return jsonify({'error': 'Session not found'}), 404
+        
+    if status['processing_complete']:
         return jsonify({
-            'html_path': '/generated/index.html',
-            'css_path': '/generated/styles.css',
-            'js_path': '/generated/script.js',
+            'html_path': f'/generated/{session_id}/index.html',
+            'css_path': f'/generated/{session_id}/styles.css',
+            'js_path': f'/generated/{session_id}/script.js',
             'metrics': {
-                'input_tokens': input_tokens,
-                'output_tokens': output_tokens,
-                'processing_time': processing_time,
-                'streaming_chunks': streaming_chunks if use_streaming else 0
+                'input_tokens': status['input_tokens'],
+                'output_tokens': status['output_tokens'],
+                'processing_time': status['processing_time'],
+                'streaming_chunks': status['streaming_chunks'] if status['use_streaming'] else 0
             }
         })
     else:
