@@ -13,6 +13,7 @@ lib/*.d.ts
 bin/*.js
 bin/*.d.ts
 
+
 # Logs
 logs
 *.log
