@@ -205,6 +205,14 @@
                     <span class="metrics-label">Streaming Chunks:</span>
                     <span class="metrics-value" id="streaming-chunks">-</span>
                 </div>
+                <div class="metrics-item">
+                    <span class="metrics-label">First Token Time:</span>
+                    <span class="metrics-value" id="first-token-time">-</span>
+                </div>
+                <div class="metrics-item">
+                    <span class="metrics-label">Tokens per Second:</span>
+                    <span class="metrics-value" id="tokens-per-second">-</span>
+                </div>
             </div>
             
             <div class="mt-4">
@@ -456,6 +464,20 @@
                                 inputTokens.textContent = data.metrics.input_tokens.toLocaleString();
                                 outputTokens.textContent = data.metrics.output_tokens.toLocaleString();
                                 processingTime.textContent = data.metrics.processing_time + ' seconds';
+                                
+                                // Update new metrics
+                                const firstTokenTimeElement = document.getElementById('first-token-time');
+                                const tokensPerSecondElement = document.getElementById('tokens-per-second');
+                                
+                                if (firstTokenTimeElement) {
+                                    firstTokenTimeElement.textContent = 
+                                        data.metrics.first_token_time > 0 ? data.metrics.first_token_time + ' seconds' : 'N/A';
+                                }
+                                
+                                if (tokensPerSecondElement) {
+                                    tokensPerSecondElement.textContent = 
+                                        data.metrics.tokens_per_second > 0 ? data.metrics.tokens_per_second.toLocaleString() : 'N/A';
+                                }
                                 
                                 if (data.metrics.streaming_chunks > 0) {
                                     streamingChunks.textContent = data.metrics.streaming_chunks;

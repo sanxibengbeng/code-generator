@@ -63,9 +63,9 @@ def process_image_streaming(session_manager, session_id, image_path):
     # Get session status
     status = session_manager.get_session_status(session_id)
     selected_model = status.get('selected_model', DEFAULT_MODEL)
-    
+
     try:
-        start_time = time.time()
+        start_time = time.time_ns() // 1_000_000  # 纳秒转毫秒
         session_manager.update_session_status(
             session_id,
             current_task="Preparing image for streaming processing",
@@ -74,22 +74,22 @@ def process_image_streaming(session_manager, session_id, image_path):
             processing_complete=False,
             error_message=None
         )
-        
+
         # Encode image to base64
         base64_image = encode_image(image_path)
-        
+
         session_manager.update_session_status(
             session_id,
             current_task="Connecting to AWS Bedrock for streaming",
             progress_percentage=15
         )
-        
+
         # Get model configuration
         model_config = MODEL_CONFIGS[selected_model]
         model_id = model_config["model_id"]
         max_tokens = model_config["max_tokens"]
         model_display_name = selected_model.replace("-", " ").title()
-        
+
         # Prepare the prompt for Claude
         prompt = f"""
         You are an expert web developer. I'm showing you a UI design image. 
@@ -121,13 +121,13 @@ def process_image_streaming(session_manager, session_id, image_path):
         // Your complete JavaScript code here
         ```
         """
-        
+
         session_manager.update_session_status(
             session_id,
             current_task=f"Sending streaming request to {model_display_name}",
             progress_percentage=20
         )
-        
+
         # Create the request payload
         request_body = {
             "anthropic_version": "bedrock-2023-05-31",
@@ -152,54 +152,63 @@ def process_image_streaming(session_manager, session_id, image_path):
                 }
             ]
         }
-        
+
         # Convert the request body to JSON
         request_body_json = json.dumps(request_body)
-        
+
         session_manager.update_session_status(
             session_id,
             current_task=f"Starting streaming with {model_display_name}",
             progress_percentage=25
         )
-        
+
         try:
             # Invoke the model with streaming
             response = bedrock_runtime.invoke_model_with_response_stream(
                 modelId=model_id,
                 body=request_body_json
             )
-            
+
             # Process the streaming response
             stream = response.get('body')
-            
+
             # Initialize variables for collecting response
             full_text = ""
             chunk_count = 0
-            
+            first_token_time = 0
+
             # Create a debug log file for chunks
             debug_log_path = session_manager.get_generated_path(session_id, 'streaming_debug.log')
             with open(debug_log_path, 'w') as debug_file:
                 debug_file.write("=== STREAMING DEBUG LOG ===\n\n")
-                
+
                 # Process each chunk
                 for event in stream:
                     chunk = event.get('chunk')
                     if chunk:
                         chunk_data = json.loads(chunk.get('bytes').decode())
-                        
+
                         # Log the raw chunk data
                         debug_file.write(f"--- CHUNK {chunk_count + 1} ---\n")
                         debug_file.write(f"Raw chunk data: {json.dumps(chunk_data, indent=2)}\n\n")
-                        
+
                         # Extract text from the chunk
                         chunk_text = ""
-                        
+
                         # Handle different types of chunks
                         if chunk_data.get('type') == 'content_block_delta':
                             delta = chunk_data.get('delta', {})
                             if delta.get('type') == 'text_delta':
                                 chunk_text = delta.get('text', '')
                                 full_text += chunk_text
+
+                                # Record first token time if this is the first content chunk
+                                if first_token_time == 0 and chunk_text != '':
+                                    first_token_time = time.time_ns() // 1_000_000 - start_time  # 直接计算毫秒差值
+                                    session_manager.update_session_status(
+                                        session_id,
+                                        first_token_time=round(first_token_time / 1000, 2),
+                                    )
                         elif chunk_data.get('type') == 'message_delta' and 'usage' in chunk_data:
                             # Extract token usage from message_delta
                             if 'output_tokens' in chunk_data.get('usage', {}):
@@ -218,24 +227,24 @@ def process_image_streaming(session_manager, session_id, image_path):
                                 input_tokens=input_tokens,
                                 output_tokens=output_tokens
                             )
-                        
+
                         # Log the extracted text
                         debug_file.write(f"Extracted text: {chunk_text}\n")
                         debug_file.write(f"Current full_text length: {len(full_text)}\n")
                         debug_file.write("-------------------\n\n")
-                        
+
                         # Update progress based on chunk count
                         chunk_count += 1
                         session_manager.update_session_status(
                             session_id,
                             streaming_chunks=chunk_count
                         )
-                        
+
                         # Dynamic progress update based on content received
                         # We'll estimate progress between 25-90% during streaming
                         current_status = session_manager.get_session_status(session_id)
                         current_progress = current_status['progress_percentage']
-                        
+
                         if "```html" in full_text and current_progress < 40:
                             session_manager.update_session_status(
                                 session_id,
@@ -265,36 +274,36 @@ def process_image_streaming(session_manager, session_id, image_path):
                                 current_task=f"Processing chunk {chunk_count}",
                                 progress_percentage=int(current_progress)
                             )
-                
+
                 # Log the final full text
                 debug_file.write("\n=== FINAL FULL TEXT ===\n")
                 debug_file.write(full_text)
                 debug_file.write("\n\n=== END OF LOG ===\n")
-            
+
             session_manager.update_session_status(
                 session_id,
                 current_task="Extracting code from streaming response",
                 progress_percentage=90
             )
-            
+
             # Extract code from the full text with debug logging
             extract_debug_path = session_manager.get_generated_path(session_id, 'extraction_debug.log')
             with open(extract_debug_path, 'w') as extract_debug:
                 html_code, css_code, js_code = extract_code_from_text(full_text, extract_debug)
-                
+
                 # If extraction failed, try to create minimal files
                 if not html_code:
                     extract_debug.write("\n=== CREATING FALLBACK HTML ===\n")
                     html_code = create_fallback_html(full_text[:1000])
-                
+
                 if not css_code:
                     extract_debug.write("\n=== CREATING FALLBACK CSS ===\n")
                     css_code = create_fallback_css()
-                
+
                 if not js_code:
                     extract_debug.write("\n=== CREATING FALLBACK JS ===\n")
                     js_code = create_fallback_js()
-        
+
         except botocore.exceptions.ReadTimeoutError:
             error_message = "Read timeout occurred. The request took too long to complete. Try using a smaller image or the non-streaming mode."
             session_manager.update_session_status(
@@ -303,12 +312,12 @@ def process_image_streaming(session_manager, session_id, image_path):
                 progress_percentage=0,
                 error_message=error_message
             )
-            
+
             # Create fallback files in case of timeout
             html_code = create_timeout_html()
             css_code = "/* No CSS generated due to timeout */"
             js_code = "// No JavaScript generated due to timeout"
-            
+
             # Save these fallback files
             file_paths = save_generated_files(session_manager, session_id, html_code, css_code, js_code)
             session_manager.update_session_status(
@@ -316,19 +325,19 @@ def process_image_streaming(session_manager, session_id, image_path):
                 processing_complete=True
             )
             return
-            
+
         session_manager.update_session_status(
             session_id,
             current_task="Saving generated files",
             progress_percentage=95
         )
-        
+
         # Save the generated code to files
         file_paths = save_generated_files(session_manager, session_id, html_code, css_code, js_code)
-        
+
         # Calculate processing time
-        processing_time = round(time.time() - start_time, 2)
-        
+        processing_time = round((time.time_ns() // 1_000_000 - start_time)/1000, 2)  # 利用ms 计算秒级别差值
+
         session_manager.update_session_status(
             session_id,
             current_task="Processing complete",
@@ -336,7 +345,7 @@ def process_image_streaming(session_manager, session_id, image_path):
             processing_complete=True,
             processing_time=processing_time
         )
-        
+
     except Exception as e:
         error_message = str(e)
         session_manager.update_session_status(
@@ -345,12 +354,12 @@ def process_image_streaming(session_manager, session_id, image_path):
             progress_percentage=0,
             error_message=error_message
         )
-        
+
         # Create fallback files in case of error
         html_code = create_error_html(error_message)
         css_code = "/* No CSS generated due to error */"
         js_code = "// No JavaScript generated due to error"
-        
+
         # Save these fallback files
         file_paths = save_generated_files(session_manager, session_id, html_code, css_code, js_code)
         session_manager.update_session_status(
@@ -369,7 +378,7 @@ def process_image_non_streaming(session_manager, session_id, image_path):
     selected_model = status.get('selected_model', DEFAULT_MODEL)
     
     try:
-        start_time = time.time()
+        start_time = time.time_ns() // 1_000_000  # 纳秒转毫秒
         session_manager.update_session_status(
             session_id,
             current_task="Preparing image for processing",
@@ -472,6 +481,13 @@ def process_image_non_streaming(session_manager, session_id, image_path):
             body=request_body_json
         )
         
+        # Record first token time for non-streaming
+        first_token_time = time.time_ns() // 1_000_000 - start_time  # 直接计算毫秒差值
+        session_manager.update_session_status(
+            session_id,
+            first_token_time=round(first_token_time/1000, 2)
+        )
+        
         session_manager.update_session_status(
             session_id,
             current_task="Parsing response",
@@ -532,7 +548,7 @@ def process_image_non_streaming(session_manager, session_id, image_path):
         file_paths = save_generated_files(session_manager, session_id, html_code, css_code, js_code)
         
         # Calculate processing time
-        processing_time = round(time.time() - start_time, 2)
+        processing_time = round((time.time_ns() // 1_000_000 - start_time)/1000, 2)  # 利用ms 计算秒级别差值
         
         session_manager.update_session_status(
             session_id,

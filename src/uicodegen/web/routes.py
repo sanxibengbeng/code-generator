@@ -100,7 +100,9 @@ def init_app(app, session_manager):
                     'input_tokens': status['input_tokens'],
                     'output_tokens': status['output_tokens'],
                     'processing_time': status['processing_time'],
-                    'streaming_chunks': status['streaming_chunks'] if status['use_streaming'] else 0
+                    'streaming_chunks': status['streaming_chunks'] if status['use_streaming'] else 0,
+                    'first_token_time': status.get('first_token_time', 0),
+                    'tokens_per_second': status.get('tokens_per_second', 0)
                 }
             })
         else:
