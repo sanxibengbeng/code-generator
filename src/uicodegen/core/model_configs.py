@@ -41,6 +41,17 @@ MODEL_CONFIGS = {
             client, prompt, model_id="anthropic.claude-3-haiku-20240307-v1:0", max_tokens=8000
         ),
     },
+    "claude-3-5-haiku": {
+        "model_id": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
+        "max_tokens": 8000,
+        "description": "Claude 3 Haiku - Fast and cost-effective",
+        "invoke": lambda client, prompt: invoke_claude_model(
+            client, prompt, model_id="us.anthropic.claude-3-5-haiku-20241022-v1:0", max_tokens=8000
+        ),
+        "invoke_streaming": lambda client, prompt: invoke_claude_model_streaming(
+            client, prompt, model_id="anthropic.claude-3-haiku-20240307-v1:0", max_tokens=8000
+        ),
+    },
     "claude-3-5-sonnet-v2": {
         "model_id": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
         "max_tokens": 8000,

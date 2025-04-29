@@ -89,7 +89,7 @@ def invoke_claude_model_streaming(client, prompt, model_id="anthropic.claude-3-s
         temperature: Temperature for generation
         
     Yields:
-        str: Chunks of generated text
+        str or dict: Chunks of generated text or metrics information
     """
     request_body = {
         "anthropic_version": "bedrock-2023-05-31",
@@ -115,5 +115,30 @@ def invoke_claude_model_streaming(client, prompt, model_id="anthropic.claude-3-s
             chunk = event.get('chunk')
             if chunk:
                 chunk_data = json.loads(chunk.get('bytes').decode())
-                if 'content' in chunk_data and len(chunk_data['content']) > 0:
-                    yield chunk_data['content'][0].get('text', '')
+                
+                # Handle different types of chunks
+                if chunk_data.get('type') == 'content_block_delta':
+                    delta = chunk_data.get('delta', {})
+                    if delta.get('type') == 'text_delta':
+                        chunk_text = delta.get('text', '')
+                        if chunk_text:
+                            yield chunk_text
+                
+                # Also yield metrics at the end if available
+                elif chunk_data.get('type') == 'message_stop' and 'amazon-bedrock-invocationMetrics' in chunk_data:
+                    # This is a special yield with metrics that can be handled by the caller
+                    metrics = chunk_data.get('amazon-bedrock-invocationMetrics', {})
+                    yield {
+                        'type': 'metrics',
+                        'input_tokens': metrics.get('inputTokenCount', 0),
+                        'output_tokens': metrics.get('outputTokenCount', 0)
+                    }
+                
+                # Handle message_delta with usage information
+                elif chunk_data.get('type') == 'message_delta' and 'usage' in chunk_data:
+                    if 'output_tokens' in chunk_data.get('usage', {}):
+                        output_tokens = chunk_data['usage']['output_tokens']
+                        yield {
+                            'type': 'usage',
+                            'output_tokens': output_tokens
+                        }
