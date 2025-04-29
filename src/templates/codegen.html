@@ -13,23 +13,33 @@
     </button>
 </div>
 
-<div class="model-selector">
-    <div class="row">
-        <div class="col-md-8">
-            <label for="modelSelect" class="form-label">Select Model:</label>
-            <select class="form-select" id="modelSelect">
-                {% for model in models %}
-                <option value="{{ model }}">{{ model }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-4">
-            <div class="form-check form-switch mt-4">
-                <input class="form-check-input" type="checkbox" id="streamingToggle" checked>
-                <label class="form-check-label" for="streamingToggle">Use Streaming API</label>
+<!-- Image Preview Container -->
+<div class="image-preview-container" id="imagePreviewContainer" style="display: none; margin-top: 2rem; text-align: center;">
+    <h4>Image Preview</h4>
+    <img id="imagePreview" class="preview-image" alt="Preview of uploaded image">
+    
+    <div class="model-selector mt-4">
+        <div class="row">
+            <div class="col-md-8">
+                <label for="modelSelect" class="form-label">Select Model:</label>
+                <select class="form-select" id="modelSelect">
+                    {% for model in models %}
+                    <option value="{{ model }}">{{ model }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <div class="form-check form-switch mt-4">
+                    <input class="form-check-input" type="checkbox" id="streamingToggle" checked>
+                    <label class="form-check-label" for="streamingToggle">Use Streaming API</label>
+                </div>
             </div>
         </div>
     </div>
+    
+    <button class="btn btn-success btn-lg mt-4" id="generateButton">
+        <i class="fas fa-code me-2"></i>Generate Code
+    </button>
 </div>
 
 <div class="progress-container" id="progressContainer" style="display: none;">
@@ -91,6 +101,9 @@
         const dropArea = document.getElementById('dropArea');
         const fileInput = document.getElementById('fileInput');
         const uploadButton = document.getElementById('uploadButton');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+        const generateButton = document.getElementById('generateButton');
         const progressContainer = document.getElementById('progressContainer');
         const progressBar = document.getElementById('progressBar');
         const taskDescription = document.getElementById('taskDescription');
@@ -108,6 +121,9 @@
         const firstTokenTime = document.getElementById('firstTokenTime');
         const tokensPerSecond = document.getElementById('tokensPerSecond');
         const streamingChunks = document.getElementById('streamingChunks');
+        
+        // Store the selected file
+        let selectedFile = null;
         
         // Event listeners for drag and drop
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -144,7 +160,7 @@
             
             if (files.length > 0) {
                 fileInput.files = files;
-                handleFiles(files);
+                handleFileSelection(files[0]);
             }
         }
         
@@ -155,28 +171,47 @@
         
         fileInput.addEventListener('change', function() {
             if (this.files.length > 0) {
-                handleFiles(this.files);
+                handleFileSelection(this.files[0]);
             }
         });
         
-        function handleFiles(files) {
-            const file = files[0];
-            
+        // Handle file selection
+        function handleFileSelection(file) {
             // Check if file is an image
             if (!file.type.match('image.*')) {
                 alert('Please upload an image file (JPG or PNG).');
                 return;
             }
             
+            // Store the selected file
+            selectedFile = file;
+            
+            // Display image preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imagePreview.src = e.target.result;
+                dropArea.style.display = 'none';
+                imagePreviewContainer.style.display = 'block';
+                resultContainer.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // Handle generate button click
+        generateButton.addEventListener('click', function() {
+            if (!selectedFile) {
+                alert('Please upload an image first.');
+                return;
+            }
+            
             // Create FormData
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', selectedFile);
             formData.append('model', modelSelect.value);
             formData.append('streaming', streamingToggle.checked);
             
             // Show progress container
             progressContainer.style.display = 'block';
-            resultContainer.style.display = 'none';
             
             // Upload file
             fetch('/upload', {
@@ -200,7 +235,7 @@
                 alert('An error occurred during upload.');
                 progressContainer.style.display = 'none';
             });
-        }
+        });
         
         function pollProgress(sessionId) {
             fetch(`/progress/${sessionId}`)
