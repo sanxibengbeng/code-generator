@@ -18,6 +18,12 @@
     <h4>Image Preview</h4>
     <img id="imagePreview" class="preview-image" alt="Preview of uploaded image">
     
+    <div class="mt-3">
+        <button class="btn btn-primary" id="changeImageButton">
+            <i class="fas fa-exchange-alt me-2"></i>Change Image
+        </button>
+    </div>
+    
     <div class="model-selector mt-4">
         <div class="row">
             <div class="col-md-8">
@@ -107,6 +113,7 @@
         const uploadButton = document.getElementById('uploadButton');
         const imagePreviewContainer = document.getElementById('imagePreviewContainer');
         const imagePreview = document.getElementById('imagePreview');
+        const changeImageButton = document.getElementById('changeImageButton');
         const generateButton = document.getElementById('generateButton');
         const progressContainer = document.getElementById('progressContainer');
         const progressBar = document.getElementById('progressBar');
@@ -174,6 +181,11 @@
             fileInput.click();
         });
         
+        // Handle change image button
+        changeImageButton.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
         fileInput.addEventListener('change', function() {
             if (this.files.length > 0) {
                 handleFileSelection(this.files[0]);
@@ -198,6 +210,7 @@
                 dropArea.style.display = 'none';
                 imagePreviewContainer.style.display = 'block';
                 resultContainer.style.display = 'none';
+                progressContainer.style.display = 'none';
             };
             reader.readAsDataURL(file);
         }
