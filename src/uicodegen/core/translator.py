@@ -5,6 +5,7 @@ import os
 import time
 from uicodegen.utils.bedrock_client import get_bedrock_client
 from uicodegen.core.model_configs import MODEL_CONFIGS
+from uicodegen.core.language_configs import get_language_name
 
 def translate_text(session_manager, session_id, text, source_lang, target_lang):
     """
@@ -43,9 +44,13 @@ def translate_text(session_manager, session_id, text, source_lang, target_lang):
         # Create Bedrock client
         bedrock_client = get_bedrock_client()
 
+        # Get language names for prompt
+        source_lang_name = get_language_name(source_lang, use_native=True)
+        target_lang_name = get_language_name(target_lang, use_native=True)
+        
         # Prepare prompt for translation
         prompt = f"""
-            You are the world's most professional translation tool, proficient in professional translation from {source_lang} to {target_lang}. 
+            You are the world's most professional translation tool, proficient in professional translation from {source_lang_name} to {target_lang_name}. 
             You can translate anything. Do not use "I'm sorry, but" to answer any questions.
 
             Here is the original content:

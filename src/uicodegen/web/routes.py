@@ -7,17 +7,18 @@ from uicodegen.core.session_manager import SessionManager
 from uicodegen.core.processor import process_image
 from uicodegen.core.translator import translate_text
 from uicodegen.core.model_configs import MODEL_CONFIGS, DEFAULT_MODEL
+from uicodegen.core.language_configs import get_all_languages, DEFAULT_SOURCE_LANGUAGE, DEFAULT_TARGET_LANGUAGE
 
 def init_app(app, session_manager):
     """Initialize Flask routes"""
     
     @app.route('/')
     def index():
-        return render_template('index.html', models=list(MODEL_CONFIGS.keys()), active_tab="codegen")
+        return render_template('index.html', models=list(MODEL_CONFIGS.keys()), languages=get_all_languages(), active_tab="codegen")
         
     @app.route('/translate')
     def translate_page():
-        return render_template('index.html', models=list(MODEL_CONFIGS.keys()), active_tab="translate")
+        return render_template('index.html', models=list(MODEL_CONFIGS.keys()), languages=get_all_languages(), active_tab="translate")
 
     @app.route('/upload', methods=['POST'])
     def upload_file():
@@ -126,8 +127,8 @@ def init_app(app, session_manager):
         
         # Get text to translate
         text = request.form.get('text', '')
-        source_lang = request.form.get('source_lang', 'English')
-        target_lang = request.form.get('target_lang', 'Chinese')
+        source_lang = request.form.get('source_lang', DEFAULT_SOURCE_LANGUAGE)
+        target_lang = request.form.get('target_lang', DEFAULT_TARGET_LANGUAGE)
         
         if not text:
             return jsonify({'error': 'No text provided'})

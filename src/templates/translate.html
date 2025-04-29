@@ -8,14 +8,9 @@
         <div class="flex-grow-1">
             <label for="sourceLanguage" class="form-label">From:</label>
             <select class="form-select" id="sourceLanguage">
-                <option value="English">English</option>
-                <option value="Chinese">Chinese</option>
-                <option value="Spanish">Spanish</option>
-                <option value="French">French</option>
-                <option value="German">German</option>
-                <option value="Japanese">Japanese</option>
-                <option value="Korean">Korean</option>
-                <option value="Russian">Russian</option>
+                {% for lang in languages %}
+                <option value="{{ lang.code }}" {% if lang.code == 'en' %}selected{% endif %}>{{ lang.native_name }}</option>
+                {% endfor %}
             </select>
         </div>
         <div class="language-arrow">
@@ -24,14 +19,9 @@
         <div class="flex-grow-1">
             <label for="targetLanguage" class="form-label">To:</label>
             <select class="form-select" id="targetLanguage">
-                <option value="Chinese">Chinese</option>
-                <option value="English">English</option>
-                <option value="Spanish">Spanish</option>
-                <option value="French">French</option>
-                <option value="German">German</option>
-                <option value="Japanese">Japanese</option>
-                <option value="Korean">Korean</option>
-                <option value="Russian">Russian</option>
+                {% for lang in languages %}
+                <option value="{{ lang.code }}" {% if lang.code == 'zh-hans' %}selected{% endif %}>{{ lang.native_name }}</option>
+                {% endfor %}
             </select>
         </div>
     </div>
