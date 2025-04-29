@@ -86,6 +86,10 @@
                 <i class="fas fa-chart-line"></i> Processing Metrics
             </div>
             <div class="metrics-item">
+                <span class="metrics-label">Model:</span>
+                <span id="translateModel">-</span>
+            </div>
+            <div class="metrics-item">
                 <span class="metrics-label">Input Tokens:</span>
                 <span id="translateInputTokens">-</span>
             </div>
@@ -130,6 +134,7 @@
         const translateStreamingToggle = document.getElementById('translateStreamingToggle');
         
         // Metrics elements
+        const translateModel = document.getElementById('translateModel');
         const translateInputTokens = document.getElementById('translateInputTokens');
         const translateOutputTokens = document.getElementById('translateOutputTokens');
         const translateProcessingTime = document.getElementById('translateProcessingTime');
@@ -242,6 +247,7 @@
                         }
                         
                         // Update metrics
+                        translateModel.textContent = data.model || translateModelSelect.value;
                         translateInputTokens.textContent = resultData.metrics.input_tokens.toLocaleString();
                         translateOutputTokens.textContent = resultData.metrics.output_tokens.toLocaleString();
                         translateProcessingTime.textContent = `${resultData.metrics.processing_time.toFixed(2)}s`;

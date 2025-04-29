@@ -68,6 +68,10 @@
             <i class="fas fa-chart-line"></i> Processing Metrics
         </div>
         <div class="metrics-item">
+            <span class="metrics-label">Model:</span>
+            <span id="modelUsed">-</span>
+        </div>
+        <div class="metrics-item">
             <span class="metrics-label">Input Tokens:</span>
             <span id="inputTokens">-</span>
         </div>
@@ -115,6 +119,7 @@
         const streamingToggle = document.getElementById('streamingToggle');
         
         // Metrics elements
+        const modelUsed = document.getElementById('modelUsed');
         const inputTokens = document.getElementById('inputTokens');
         const outputTokens = document.getElementById('outputTokens');
         const processingTime = document.getElementById('processingTime');
@@ -278,6 +283,7 @@
                         jsLink.href = resultData.js_path;
                         
                         // Update metrics
+                        modelUsed.textContent = data.model || modelSelect.value;
                         inputTokens.textContent = resultData.metrics.input_tokens.toLocaleString();
                         outputTokens.textContent = resultData.metrics.output_tokens.toLocaleString();
                         processingTime.textContent = `${resultData.metrics.processing_time.toFixed(2)}s`;

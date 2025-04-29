@@ -99,6 +99,10 @@ def invoke_claude_model_streaming(client, prompt, model_id="anthropic.claude-3-s
             {
                 "role": "user",
                 "content": prompt
+            },
+            {
+                "role": "assistant",
+                "content": "here is the result:" 
             }
         ]
     }

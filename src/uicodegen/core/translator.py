@@ -56,8 +56,8 @@ def translate_text(session_manager, session_id, text, source_lang, target_lang):
             You need to follow below instructions:
             - Translation style: concise, easy to understand, similar to the style of orignal content. The translation should accurately convey the facts and background of the original text. Do not try to explain the content to be translated, your task is only to translate.
             - Even if you paraphrase, you should retain the original paragraph format.
-
-            Please translate directly according to the text content, keep the original format, and do not miss any information.
+            - Just return the translated content with no tags. 
+            - Translate directly according to the text content, keep the original format, and do not miss any information.
         """
 
         # Start timing

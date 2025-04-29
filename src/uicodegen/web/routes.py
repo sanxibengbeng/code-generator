@@ -108,7 +108,8 @@ def init_app(app, session_manager):
                     'streaming_chunks': status['streaming_chunks'] if status['use_streaming'] else 0,
                     'first_token_time': status.get('first_token_time', 0),
                     'tokens_per_second': status.get('tokens_per_second', 0)
-                }
+                },
+                'model': status.get('selected_model', 'Unknown')
             })
         else:
             return jsonify({'error': 'Processing not complete'})
@@ -199,7 +200,8 @@ def init_app(app, session_manager):
                         'streaming_chunks': status.get('streaming_chunks', 0) if status.get('use_streaming', False) else 0,
                         'first_token_time': status.get('first_token_time', 0),
                         'tokens_per_second': status.get('tokens_per_second', 0)
-                    }
+                    },
+                    'model': status.get('selected_model', 'Unknown')
                 })
             except Exception as e:
                 return jsonify({'error': f'Error reading translation: {str(e)}'})
