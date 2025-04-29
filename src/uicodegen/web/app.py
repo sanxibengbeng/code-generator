@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask
+from flask import Flask, render_template
 
 # Add the project root directory to the Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))

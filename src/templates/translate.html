@@ -1,0 +1,277 @@
+<div class="header">
+    <h1>AI Translator</h1>
+    <p class="lead">Translate text between languages using AI</p>
+</div>
+
+<div class="translate-container">
+    <div class="language-selectors">
+        <div class="flex-grow-1">
+            <label for="sourceLanguage" class="form-label">From:</label>
+            <select class="form-select" id="sourceLanguage">
+                <option value="English">English</option>
+                <option value="Chinese">Chinese</option>
+                <option value="Spanish">Spanish</option>
+                <option value="French">French</option>
+                <option value="German">German</option>
+                <option value="Japanese">Japanese</option>
+                <option value="Korean">Korean</option>
+                <option value="Russian">Russian</option>
+            </select>
+        </div>
+        <div class="language-arrow">
+            <i class="fas fa-exchange-alt"></i>
+        </div>
+        <div class="flex-grow-1">
+            <label for="targetLanguage" class="form-label">To:</label>
+            <select class="form-select" id="targetLanguage">
+                <option value="Chinese">Chinese</option>
+                <option value="English">English</option>
+                <option value="Spanish">Spanish</option>
+                <option value="French">French</option>
+                <option value="German">German</option>
+                <option value="Japanese">Japanese</option>
+                <option value="Korean">Korean</option>
+                <option value="Russian">Russian</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="form-group">
+        <label for="sourceText" class="form-label">Text to translate:</label>
+        <textarea class="form-control" id="sourceText" rows="6" placeholder="Enter text to translate..."></textarea>
+    </div>
+    
+    <div class="model-selector">
+        <div class="row">
+            <div class="col-md-8">
+                <label for="translateModelSelect" class="form-label">Select Model:</label>
+                <select class="form-select" id="translateModelSelect">
+                    {% for model in models %}
+                    <option value="{{ model }}">{{ model }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <div class="form-check form-switch mt-4">
+                    <input class="form-check-input" type="checkbox" id="translateStreamingToggle" checked>
+                    <label class="form-check-label" for="translateStreamingToggle">Use Streaming API</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <button class="btn btn-primary" id="translateButton">
+        <i class="fas fa-language me-2"></i>Translate
+    </button>
+    
+    <div class="progress-container" id="translateProgressContainer" style="display: none;">
+        <h4 id="translateTaskDescription" class="task-description mb-3">Processing translation...</h4>
+        <div class="progress" style="height: 25px;">
+            <div id="translateProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+        </div>
+    </div>
+    
+    <div class="result-container" id="translateResultContainer" style="display: none;">
+        <h3>Translation Result</h3>
+        <div class="translation-result" id="translationResult"></div>
+        
+        <div class="metrics-container">
+            <div class="metrics-title">
+                <i class="fas fa-chart-line"></i> Processing Metrics
+            </div>
+            <div class="metrics-item">
+                <span class="metrics-label">Input Tokens:</span>
+                <span id="translateInputTokens">-</span>
+            </div>
+            <div class="metrics-item">
+                <span class="metrics-label">Output Tokens:</span>
+                <span id="translateOutputTokens">-</span>
+            </div>
+            <div class="metrics-item">
+                <span class="metrics-label">Processing Time:</span>
+                <span id="translateProcessingTime">-</span>
+            </div>
+            <div class="metrics-item">
+                <span class="metrics-label">First Token Time:</span>
+                <span id="translateFirstTokenTime">-</span>
+            </div>
+            <div class="metrics-item">
+                <span class="metrics-label">Tokens Per Second:</span>
+                <span id="translateTokensPerSecond">-</span>
+            </div>
+            <div class="metrics-item">
+                <span class="metrics-label">Streaming Chunks:</span>
+                <span id="translateStreamingChunks">-</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Translation functionality
+        const sourceLanguage = document.getElementById('sourceLanguage');
+        const targetLanguage = document.getElementById('targetLanguage');
+        const sourceText = document.getElementById('sourceText');
+        const translateButton = document.getElementById('translateButton');
+        const translateProgressContainer = document.getElementById('translateProgressContainer');
+        const translateProgressBar = document.getElementById('translateProgressBar');
+        const translateTaskDescription = document.getElementById('translateTaskDescription');
+        const translateResultContainer = document.getElementById('translateResultContainer');
+        const translationResult = document.getElementById('translationResult');
+        const translateModelSelect = document.getElementById('translateModelSelect');
+        const translateStreamingToggle = document.getElementById('translateStreamingToggle');
+        
+        // Metrics elements
+        const translateInputTokens = document.getElementById('translateInputTokens');
+        const translateOutputTokens = document.getElementById('translateOutputTokens');
+        const translateProcessingTime = document.getElementById('translateProcessingTime');
+        const translateFirstTokenTime = document.getElementById('translateFirstTokenTime');
+        const translateTokensPerSecond = document.getElementById('translateTokensPerSecond');
+        const translateStreamingChunks = document.getElementById('translateStreamingChunks');
+        
+        // Handle language swap
+        document.querySelector('.language-arrow').addEventListener('click', function() {
+            const sourceValue = sourceLanguage.value;
+            const targetValue = targetLanguage.value;
+            
+            sourceLanguage.value = targetValue;
+            targetLanguage.value = sourceValue;
+        });
+        
+        // Handle translation
+        translateButton.addEventListener('click', function() {
+            const text = sourceText.value.trim();
+            
+            if (!text) {
+                alert('Please enter text to translate.');
+                return;
+            }
+            
+            // Create FormData
+            const formData = new FormData();
+            formData.append('text', text);
+            formData.append('source_lang', sourceLanguage.value);
+            formData.append('target_lang', targetLanguage.value);
+            formData.append('model', translateModelSelect.value);
+            formData.append('streaming', translateStreamingToggle.checked);
+            
+            // Show progress container
+            translateProgressContainer.style.display = 'block';
+            translateResultContainer.style.display = 'none';
+            
+            // Send translation request
+            fetch('/translate/process', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    translateProgressContainer.style.display = 'none';
+                    return;
+                }
+                
+                // Start polling for progress
+                const sessionId = data.session_id;
+                pollTranslateProgress(sessionId);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred during translation request.');
+                translateProgressContainer.style.display = 'none';
+            });
+        });
+        
+        function pollTranslateProgress(sessionId) {
+            fetch(`/progress/${sessionId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    translateProgressContainer.style.display = 'none';
+                    return;
+                }
+                
+                // Update progress
+                const progress = data.progress_percentage;
+                translateProgressBar.style.width = `${progress}%`;
+                translateProgressBar.setAttribute('aria-valuenow', progress);
+                translateProgressBar.textContent = `${progress}%`;
+                
+                // Update task description
+                translateTaskDescription.textContent = data.current_task;
+                
+                if (data.error_message) {
+                    alert('Error: ' + data.error_message);
+                    translateProgressContainer.style.display = 'none';
+                    return;
+                }
+                
+                if (data.processing_complete) {
+                    // Get result
+                    fetch(`/translate/result/${sessionId}`)
+                    .then(response => response.json())
+                    .then(resultData => {
+                        if (resultData.error) {
+                            alert('Error: ' + resultData.error);
+                            translateProgressContainer.style.display = 'none';
+                            return;
+                        }
+                        
+                        console.log("Translation result:", resultData); // Debug log
+                        
+                        // Update translation result
+                        if (resultData.translated_text) {
+                            translationResult.textContent = resultData.translated_text;
+                        } else {
+                            translationResult.textContent = "No translation result received.";
+                        }
+                        
+                        // Update metrics
+                        translateInputTokens.textContent = resultData.metrics.input_tokens.toLocaleString();
+                        translateOutputTokens.textContent = resultData.metrics.output_tokens.toLocaleString();
+                        translateProcessingTime.textContent = `${resultData.metrics.processing_time.toFixed(2)}s`;
+                        
+                        if (resultData.metrics.first_token_time) {
+                            translateFirstTokenTime.textContent = `${resultData.metrics.first_token_time.toFixed(2)}s`;
+                        } else {
+                            translateFirstTokenTime.textContent = 'N/A';
+                        }
+                        
+                        if (resultData.metrics.tokens_per_second) {
+                            translateTokensPerSecond.textContent = `${resultData.metrics.tokens_per_second.toFixed(2)}`;
+                        } else {
+                            translateTokensPerSecond.textContent = 'N/A';
+                        }
+                        
+                        if (data.use_streaming) {
+                            translateStreamingChunks.textContent = resultData.metrics.streaming_chunks;
+                        } else {
+                            translateStreamingChunks.textContent = 'N/A (Non-streaming mode)';
+                        }
+                        
+                        // Show result container
+                        translateProgressContainer.style.display = 'none';
+                        translateResultContainer.style.display = 'block';
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while fetching translation results.');
+                    });
+                } else {
+                    // Continue polling
+                    setTimeout(() => pollTranslateProgress(sessionId), 1000);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while checking progress.');
+                translateProgressContainer.style.display = 'none';
+            });
+        }
+    });
+</script>
+{% endblock %}

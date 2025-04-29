@@ -5,6 +5,7 @@ from werkzeug.utils import secure_filename
 
 from uicodegen.core.session_manager import SessionManager
 from uicodegen.core.processor import process_image
+from uicodegen.core.translator import translate_text
 from uicodegen.core.model_configs import MODEL_CONFIGS, DEFAULT_MODEL
 
 def init_app(app, session_manager):
@@ -12,7 +13,11 @@ def init_app(app, session_manager):
     
     @app.route('/')
     def index():
-        return render_template('index.html', models=list(MODEL_CONFIGS.keys()))
+        return render_template('index.html', models=list(MODEL_CONFIGS.keys()), active_tab="codegen")
+        
+    @app.route('/translate')
+    def translate_page():
+        return render_template('index.html', models=list(MODEL_CONFIGS.keys()), active_tab="translate")
 
     @app.route('/upload', methods=['POST'])
     def upload_file():
@@ -112,3 +117,91 @@ def init_app(app, session_manager):
     def generated_files(filename):
         print(f"Serving file: {app.config['GENERATED_FOLDER']}/{filename}")
         return send_from_directory(app.config['GENERATED_FOLDER'], filename, as_attachment=False)
+        
+    @app.route('/translate/process', methods=['POST'])
+    def process_translation():
+        # Create a new session
+        session_id = session_manager.create_session()
+        
+        # Get text to translate
+        text = request.form.get('text', '')
+        source_lang = request.form.get('source_lang', 'English')
+        target_lang = request.form.get('target_lang', 'Chinese')
+        
+        if not text:
+            return jsonify({'error': 'No text provided'})
+        
+        # Get selected model
+        selected_model = DEFAULT_MODEL
+        if 'model' in request.form:
+            model_name = request.form['model']
+            if model_name in MODEL_CONFIGS:
+                selected_model = model_name
+        
+        # Get streaming preference
+        use_streaming = False
+        if 'streaming' in request.form:
+            use_streaming = request.form['streaming'].lower() == 'true'
+        
+        # Update session with selected options
+        session_manager.update_session_status(
+            session_id,
+            selected_model=selected_model,
+            use_streaming=use_streaming,
+            current_task="Starting translation",
+            progress_percentage=0,
+            is_processing=True,
+            processing_complete=False,
+            error_message=None,
+            input_tokens=0,
+            output_tokens=0,
+            processing_time=0,
+            streaming_chunks=0
+        )
+        
+        # Start processing in a separate thread
+        thread = threading.Thread(
+            target=translate_text, 
+            args=(session_manager, session_id, text, source_lang, target_lang)
+        )
+        thread.start()
+        
+        return jsonify({
+            'message': 'Translation started', 
+            'session_id': session_id,
+            'model': selected_model,
+            'streaming': use_streaming
+        })
+        
+    @app.route('/translate/result/<session_id>')
+    def get_translation_result(session_id):
+        status = session_manager.get_session_status(session_id)
+        
+        if not status:
+            return jsonify({'error': 'Session not found'}), 404
+            
+        if status['processing_complete']:
+            # Read the translation file
+            translation_path = session_manager.get_generated_path(session_id, "translation.txt")
+            
+            try:
+                with open(translation_path, 'r', encoding='utf-8') as f:
+                    translated_text = f.read()
+                
+                print(f"Translation result for session {session_id}: {translated_text[:100]}...")
+                
+                return jsonify({
+                    'translated_text': translated_text,
+                    'metrics': {
+                        'input_tokens': status.get('input_tokens', 0),
+                        'output_tokens': status.get('output_tokens', 0),
+                        'processing_time': status.get('processing_time', 0),
+                        'streaming_chunks': status.get('streaming_chunks', 0) if status.get('use_streaming', False) else 0,
+                        'first_token_time': status.get('first_token_time', 0),
+                        'tokens_per_second': status.get('tokens_per_second', 0)
+                    }
+                })
+            except Exception as e:
+                return jsonify({'error': f'Error reading translation: {str(e)}'})
+        else:
+            return jsonify({'error': 'Processing not complete'})

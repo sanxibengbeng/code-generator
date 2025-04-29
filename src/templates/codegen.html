@@ -1,0 +1,289 @@
+<div class="header">
+    <h1>UI to Code Generator</h1>
+    <p class="lead">Upload a UI design image and get responsive HTML, CSS, and JavaScript code</p>
+</div>
+
+<div class="upload-container" id="dropArea">
+    <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-primary"></i>
+    <h3>Drag & Drop or Click to Upload</h3>
+    <p>Upload a UI design image (JPG, PNG) to generate code</p>
+    <input type="file" id="fileInput" class="file-input" accept="image/jpeg, image/png">
+    <button class="btn btn-primary mt-3" id="uploadButton">
+        <i class="fas fa-upload me-2"></i>Select File
+    </button>
+</div>
+
+<div class="model-selector">
+    <div class="row">
+        <div class="col-md-8">
+            <label for="modelSelect" class="form-label">Select Model:</label>
+            <select class="form-select" id="modelSelect">
+                {% for model in models %}
+                <option value="{{ model }}">{{ model }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <div class="form-check form-switch mt-4">
+                <input class="form-check-input" type="checkbox" id="streamingToggle" checked>
+                <label class="form-check-label" for="streamingToggle">Use Streaming API</label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="progress-container" id="progressContainer" style="display: none;">
+    <h4 id="taskDescription" class="task-description mb-3">Processing image...</h4>
+    <div class="progress" style="height: 25px;">
+        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+    </div>
+</div>
+
+<div class="result-container" id="resultContainer" style="display: none;">
+    <h3>Generated Code</h3>
+    <div class="code-links">
+        <a href="#" id="htmlLink" target="_blank" class="btn btn-outline-primary">
+            <i class="fab fa-html5 me-2"></i>View HTML
+        </a>
+        <a href="#" id="cssLink" target="_blank" class="btn btn-outline-primary">
+            <i class="fab fa-css3-alt me-2"></i>View CSS
+        </a>
+        <a href="#" id="jsLink" target="_blank" class="btn btn-outline-primary">
+            <i class="fab fa-js me-2"></i>View JavaScript
+        </a>
+    </div>
+    
+    <div class="metrics-container">
+        <div class="metrics-title">
+            <i class="fas fa-chart-line"></i> Processing Metrics
+        </div>
+        <div class="metrics-item">
+            <span class="metrics-label">Input Tokens:</span>
+            <span id="inputTokens">-</span>
+        </div>
+        <div class="metrics-item">
+            <span class="metrics-label">Output Tokens:</span>
+            <span id="outputTokens">-</span>
+        </div>
+        <div class="metrics-item">
+            <span class="metrics-label">Processing Time:</span>
+            <span id="processingTime">-</span>
+        </div>
+        <div class="metrics-item">
+            <span class="metrics-label">First Token Time:</span>
+            <span id="firstTokenTime">-</span>
+        </div>
+        <div class="metrics-item">
+            <span class="metrics-label">Tokens Per Second:</span>
+            <span id="tokensPerSecond">-</span>
+        </div>
+        <div class="metrics-item">
+            <span class="metrics-label">Streaming Chunks:</span>
+            <span id="streamingChunks">-</span>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // UI to Code Generator functionality
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadButton = document.getElementById('uploadButton');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const taskDescription = document.getElementById('taskDescription');
+        const resultContainer = document.getElementById('resultContainer');
+        const htmlLink = document.getElementById('htmlLink');
+        const cssLink = document.getElementById('cssLink');
+        const jsLink = document.getElementById('jsLink');
+        const modelSelect = document.getElementById('modelSelect');
+        const streamingToggle = document.getElementById('streamingToggle');
+        
+        // Metrics elements
+        const inputTokens = document.getElementById('inputTokens');
+        const outputTokens = document.getElementById('outputTokens');
+        const processingTime = document.getElementById('processingTime');
+        const firstTokenTime = document.getElementById('firstTokenTime');
+        const tokensPerSecond = document.getElementById('tokensPerSecond');
+        const streamingChunks = document.getElementById('streamingChunks');
+        
+        // Event listeners for drag and drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight() {
+            dropArea.classList.add('dragover');
+        }
+        
+        function unhighlight() {
+            dropArea.classList.remove('dragover');
+        }
+        
+        // Handle file drop
+        dropArea.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFiles(files);
+            }
+        }
+        
+        // Handle file selection via button
+        uploadButton.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                handleFiles(this.files);
+            }
+        });
+        
+        function handleFiles(files) {
+            const file = files[0];
+            
+            // Check if file is an image
+            if (!file.type.match('image.*')) {
+                alert('Please upload an image file (JPG or PNG).');
+                return;
+            }
+            
+            // Create FormData
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('model', modelSelect.value);
+            formData.append('streaming', streamingToggle.checked);
+            
+            // Show progress container
+            progressContainer.style.display = 'block';
+            resultContainer.style.display = 'none';
+            
+            // Upload file
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    progressContainer.style.display = 'none';
+                    return;
+                }
+                
+                // Start polling for progress
+                const sessionId = data.session_id;
+                pollProgress(sessionId);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred during upload.');
+                progressContainer.style.display = 'none';
+            });
+        }
+        
+        function pollProgress(sessionId) {
+            fetch(`/progress/${sessionId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    progressContainer.style.display = 'none';
+                    return;
+                }
+                
+                // Update progress
+                const progress = data.progress_percentage;
+                progressBar.style.width = `${progress}%`;
+                progressBar.setAttribute('aria-valuenow', progress);
+                progressBar.textContent = `${progress}%`;
+                
+                // Update task description
+                taskDescription.textContent = data.current_task;
+                
+                if (data.error_message) {
+                    alert('Error: ' + data.error_message);
+                    progressContainer.style.display = 'none';
+                    return;
+                }
+                
+                if (data.processing_complete) {
+                    // Get result
+                    fetch(`/result/${sessionId}`)
+                    .then(response => response.json())
+                    .then(resultData => {
+                        if (resultData.error) {
+                            alert('Error: ' + resultData.error);
+                            return;
+                        }
+                        
+                        // Update links
+                        htmlLink.href = resultData.html_path;
+                        cssLink.href = resultData.css_path;
+                        jsLink.href = resultData.js_path;
+                        
+                        // Update metrics
+                        inputTokens.textContent = resultData.metrics.input_tokens.toLocaleString();
+                        outputTokens.textContent = resultData.metrics.output_tokens.toLocaleString();
+                        processingTime.textContent = `${resultData.metrics.processing_time.toFixed(2)}s`;
+                        
+                        if (resultData.metrics.first_token_time) {
+                            firstTokenTime.textContent = `${resultData.metrics.first_token_time.toFixed(2)}s`;
+                        } else {
+                            firstTokenTime.textContent = 'N/A';
+                        }
+                        
+                        if (resultData.metrics.tokens_per_second) {
+                            tokensPerSecond.textContent = `${resultData.metrics.tokens_per_second.toFixed(2)}`;
+                        } else {
+                            tokensPerSecond.textContent = 'N/A';
+                        }
+                        
+                        if (data.use_streaming) {
+                            streamingChunks.textContent = resultData.metrics.streaming_chunks;
+                        } else {
+                            streamingChunks.textContent = 'N/A (Non-streaming mode)';
+                        }
+                        
+                        // Show result container
+                        progressContainer.style.display = 'none';
+                        resultContainer.style.display = 'block';
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while fetching results.');
+                    });
+                } else {
+                    // Continue polling
+                    setTimeout(() => pollProgress(sessionId), 1000);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while checking progress.');
+                progressContainer.style.display = 'none';
+            });
+        }
+    });
+</script>
+{% endblock %}
