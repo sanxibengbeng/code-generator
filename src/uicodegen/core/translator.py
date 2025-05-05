@@ -45,8 +45,8 @@ def translate_text(session_manager, session_id, text, source_lang, target_lang):
         bedrock_client = get_bedrock_client()
 
         # Get language names for prompt
-        source_lang_name = get_language_name(source_lang, use_native=True)
-        target_lang_name = get_language_name(target_lang, use_native=True)
+        source_lang_name = get_language_name(source_lang, use_native=False)
+        target_lang_name = get_language_name(target_lang, use_native=False)
         
         # Prepare prompt for translation
         prompt = f"""
@@ -58,7 +58,26 @@ def translate_text(session_manager, session_id, text, source_lang, target_lang):
             {text}
             </content>
 
+            examples:
+            <example>
+            input:
+            ```json
+            original content
+            ```
+            ```json
+            translated content
+            ```
+            </example>
+
+            <example>
+            input:
+            <p>original content</p>
+            output:
+            <p>translated content</p>
+            </example>
+
             You need to follow below instructions:
+            - Preserve all HTML tags and Markdown annotations exactly as they appear in the original text.
             - Translation style: concise, easy to understand, similar to the style of orignal content. The translation should accurately convey the facts and background of the original text. Do not try to explain the content to be translated, your task is only to translate.
             - Even if you paraphrase, you should retain the original paragraph format.
             - Just return the translated content with no tags. 
