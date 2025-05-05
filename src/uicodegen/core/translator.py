@@ -7,6 +7,9 @@ from uicodegen.utils.bedrock_client import get_bedrock_client
 from uicodegen.core.model_configs import MODEL_CONFIGS
 from uicodegen.core.language_configs import get_language_name
 
+# Translation-specific configuration
+TRANSLATION_PREFILL_PROMPT = "here is the translated content with HTML tags and Markdown annotations preserved:"
+
 def translate_text(session_manager, session_id, text, source_lang, target_lang):
     """
     Translate text using LLM
@@ -110,8 +113,8 @@ def translate_text(session_manager, session_id, text, source_lang, target_lang):
                 first_token_time = None
                 full_text = ""
 
-                # Process streaming response
-                for chunk in model_config['invoke_streaming'](bedrock_client, prompt):
+                # Process streaming response with translation-specific prefill prompt
+                for chunk in model_config['invoke_streaming'](bedrock_client, prompt, prefill_prompt=TRANSLATION_PREFILL_PROMPT):
                     # Check if this is a text chunk or a metrics chunk
                     if isinstance(chunk, str):
                         if streaming_chunks == 0:
@@ -174,8 +177,8 @@ def translate_text(session_manager, session_id, text, source_lang, target_lang):
                     progress_percentage=50
                 )
 
-                # Get response from model
-                response = model_config['invoke'](bedrock_client, prompt)
+                # Get response from model with translation-specific prefill prompt
+                response = model_config['invoke'](bedrock_client, prompt, prefill_prompt=TRANSLATION_PREFILL_PROMPT)
                 translated_text = response['content']
 
                 # Get token usage if available

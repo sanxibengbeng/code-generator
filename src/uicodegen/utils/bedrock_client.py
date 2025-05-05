@@ -33,7 +33,7 @@ def get_bedrock_client(region="us-east-1"):
     
     return bedrock_client
 
-def invoke_claude_model(client, prompt, model_id="anthropic.claude-3-sonnet-20240229-v1:0", max_tokens=4096, temperature=0.7):
+def invoke_claude_model(client, prompt, model_id="anthropic.claude-3-sonnet-20240229-v1:0", max_tokens=4096, temperature=0.7, prefill_prompt="here is the result"):
     """
     Invoke Claude model with the given prompt
     
@@ -43,6 +43,7 @@ def invoke_claude_model(client, prompt, model_id="anthropic.claude-3-sonnet-2024
         model_id: Claude model ID
         max_tokens: Maximum tokens to generate
         temperature: Temperature for generation
+        prefill_prompt: Text to prefill the assistant's response
         
     Returns:
         dict: Model response
@@ -55,6 +56,10 @@ def invoke_claude_model(client, prompt, model_id="anthropic.claude-3-sonnet-2024
             {
                 "role": "user",
                 "content": prompt
+            },
+            {
+                "role": "assistant",
+                "content": prefill_prompt
             }
         ]
     }
@@ -77,7 +82,7 @@ def invoke_claude_model(client, prompt, model_id="anthropic.claude-3-sonnet-2024
         'usage': usage
     }
 
-def invoke_claude_model_streaming(client, prompt, model_id="anthropic.claude-3-sonnet-20240229-v1:0", max_tokens=4096, temperature=0.7):
+def invoke_claude_model_streaming(client, prompt, model_id="anthropic.claude-3-sonnet-20240229-v1:0", max_tokens=4096, temperature=0.7, prefill_prompt="here is the result"):
     """
     Invoke Claude model with streaming response
     
@@ -87,6 +92,7 @@ def invoke_claude_model_streaming(client, prompt, model_id="anthropic.claude-3-s
         model_id: Claude model ID
         max_tokens: Maximum tokens to generate
         temperature: Temperature for generation
+        prefill_prompt: Text to prefill the assistant's response
         
     Yields:
         str or dict: Chunks of generated text or metrics information
@@ -102,7 +108,7 @@ def invoke_claude_model_streaming(client, prompt, model_id="anthropic.claude-3-s
             },
             {
                 "role": "assistant",
-                "content": "here is the result:" 
+                "content": prefill_prompt 
             }
         ]
     }
