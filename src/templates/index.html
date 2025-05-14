@@ -3,7 +3,9 @@
 {% block content %}
 {% if active_tab == 'codegen' %}
     {% include "codegen.html" %}
-{% else %}
+{% elif active_tab == 'translate' %}
     {% include "translate.html" %}
+{% elif active_tab == 'html-translate' %}
+    {% include "html_translate.html" %}
 {% endif %}
 {% endblock %}
