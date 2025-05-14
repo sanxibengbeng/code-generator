@@ -11,35 +11,49 @@ from uicodegen.core.model_configs import MODEL_CONFIGS
 from uicodegen.core.language_configs import get_language_name
 
 # HTML Translation-specific configuration
-HTML_TRANSLATION_PREFILL_PROMPT = "<translated_content>"
+HTML_TRANSLATION_PREFILL_PROMPT = "following is the translated content:"
 
 HTML_TRANSLATION_PROMPT_BASE = """
-你是一个专业的{$TARGET_LANGUAGE}翻译AI助手，现在需要你完成一项富文本翻译任务。这个任务涉及翻译HTML内容，要求你只翻译其中的自然语言文本，而保持代码和特殊格式不变。
+You are an expert professional translator specializing in {$TARGET_LANGUAGE}. Your task is to translate HTML content while preserving all code structure and formatting.
 
-请按照以下规则进行翻译：
+# TASK DESCRIPTION
+You need to translate the natural language text within HTML content from the source language to {$TARGET_LANGUAGE}, while maintaining all HTML tags, variables, and special formatting intact.
 
-1. 只翻译编号 <an> 中的自然语言文本，目标语言是：{$TARGET_LANGUAGE}
-2. 不要翻译或修改任何变量名，例如 $variable #if #set 这种格式的变量名内容应保持原样。
-3. 确保翻译后的文本语义准确，符合目标语言的语言习惯。
+# TRANSLATION RULES
+1. Only translate the natural language text within the numbered tags (e.g., <a0>, <a1>).
+2. Preserve all variables (e.g., $variable, #if, #set) exactly as they appear in the original text.
+3. Maintain all HTML tags, attributes, and structure without modification.
+4. Ensure the translation is accurate, natural, and follows the conventions of {$TARGET_LANGUAGE}.
+5. Preserve any special characters, punctuation, and formatting that appears in the original text.
 
-请将你的翻译结果放在 <translated_content> 标签内。
+# TRANSLATION PROCESS
+Let me break down my approach:
+1. First, I'll identify all translatable text segments within the numbered tags.
+2. For each segment, I'll:
+   a. Analyze the content to distinguish between code/variables and natural language
+   b. Preserve all code elements exactly as they appear
+   c. Translate only the natural language portions
+   d. Ensure the translation maintains the original meaning and tone
+3. I'll verify that all variables and special formatting remain intact
 
-下面是一个简单的示例，展示了如何处理内容的翻译（假设目标语言是中文）：
-
-输入：
+# EXAMPLE
+Input:
 <content>
 <a0>Hello, $USERNAME! Welcome to our website.</a0>
 </content>
 
-输出：
-<translated_content>
-<a0>你好，$USERNAME！欢迎访问我们的网站。</a0>
-</translated_content>
+My thought process:
+- I need to translate "Hello" and "Welcome to our website" to the target language
+- I must keep "$USERNAME" unchanged as it's a variable
+- I need to maintain the exclamation mark and proper punctuation
 
-以下是需要翻译的内容：
+Output:
+<a0>你好，$USERNAME！欢迎访问我们的网站。</a0>
+
+# CONTENT TO TRANSLATE
 {$HTML_CONTENT}
 
-现在，请开始翻译上面提供的<content>内容。记住，只翻译自然语言文本，保持代码和特殊格式不变。
+I'll now translate the content above, preserving all code elements and special formatting while translating only the natural language text.
 """
 
 def parse_html_content(html_content):
@@ -163,7 +177,6 @@ def translate_html_part(content, target_language, model_config, bedrock_client, 
     tree = ET.ElementTree(root)
     ET.indent(root, space="", level=0)
     text = ET.tostring(root).decode("utf-8")
-    
     # Prepare prompt for translation
     prompt = HTML_TRANSLATION_PROMPT_BASE.replace("{$HTML_CONTENT}", text)
     prompt = prompt.replace("{$TARGET_LANGUAGE}", target_language)
@@ -201,29 +214,13 @@ def translate_html_part(content, target_language, model_config, bedrock_client, 
         
         # Parse the full text response
         try:
-            # Try to extract content between tags
-            start_tag = "<translated_content>"
-            end_tag = "</translated_content>"
-            content_start = full_text.find(start_tag)
-            content_end = full_text.find(end_tag)
-            
-            if content_start != -1 and content_end != -1:
-                content = full_text[content_start + len(start_tag):content_end]
-                # Try to parse the content
-                try:
-                    wrapped_content = f"<translated_content>{content}</translated_content>"
-                    result_xml = ET.fromstring(wrapped_content)
-                    translated = {child.tag: child.text for child in result_xml}
-                except ET.ParseError:
-                    # If parsing fails, try to extract individual elements
-                    translated = extract_elements_from_text(content)
-            else:
-                # If tags not found, try to parse the whole response
-                try:
-                    result_xml = ET.fromstring(full_text)
-                    translated = {child.tag: child.text for child in result_xml}
-                except ET.ParseError:
-                    translated = {}
+            # Try to parse the XML content directly
+            try:
+                result_xml = ET.fromstring(full_text)
+                translated = {child.tag: child.text for child in result_xml}
+            except ET.ParseError:
+                # If parsing fails, try to extract individual elements
+                translated = extract_elements_from_text(full_text)
         except Exception:
             translated = {}
     else:
@@ -238,29 +235,13 @@ def translate_html_part(content, target_language, model_config, bedrock_client, 
         
         # Parse XML response
         try:
-            # Try to extract content between tags
-            start_tag = "<translated_content>"
-            end_tag = "</translated_content>"
-            content_start = result.find(start_tag)
-            content_end = result.find(end_tag)
-            
-            if content_start != -1 and content_end != -1:
-                content = result[content_start + len(start_tag):content_end]
-                # Try to parse the content
-                try:
-                    wrapped_content = f"<translated_content>{content}</translated_content>"
-                    result_xml = ET.fromstring(wrapped_content)
-                    translated = {child.tag: child.text for child in result_xml}
-                except ET.ParseError:
-                    # If parsing fails, try to extract individual elements
-                    translated = extract_elements_from_text(content)
-            else:
-                # If tags not found, try to parse the whole response
-                try:
-                    result_xml = ET.fromstring(result)
-                    translated = {child.tag: child.text for child in result_xml}
-                except ET.ParseError:
-                    translated = {}
+            # Try to parse the XML content directly
+            try:
+                result_xml = ET.fromstring(result)
+                translated = {child.tag: child.text for child in result_xml}
+            except ET.ParseError:
+                # If parsing fails, try to extract individual elements
+                translated = extract_elements_from_text(result)
         except Exception:
             translated = {}
     
