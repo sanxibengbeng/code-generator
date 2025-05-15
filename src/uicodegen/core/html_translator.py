@@ -21,7 +21,6 @@ You need to translate the natural language text within HTML content from {$SOURC
 
 # TRANSLATION RULES
 1. Only translate the natural language text within the numbered tags (e.g., <a0>, <a1>).
-2. Preserve all variables (e.g., $variable, #if, #set) exactly as they appear in the original text.
 3. Maintain all HTML tags, attributes, and structure without modification.
 4. Ensure the translation is accurate, natural, and follows the conventions of {$TARGET_LANGUAGE}.
 5. Preserve any special characters, punctuation, and formatting that appears in the original text.
@@ -44,18 +43,15 @@ Input:
 
 My thought process:
 - I need to translate "Hello" and "Welcome to our website" from English to Simplified Chinese 
-- I must keep "$USERNAME" unchanged as it's a variable
 - I need to maintain the exclamation mark and proper punctuation
 
 Output:
 <a0>你好，$USERNAME！欢迎访问我们的网站。</a0>
 
 # CONTENT TO TRANSLATE
-<content>
 {$HTML_CONTENT}
-</content>
 
-I'll now translate the content from {$SOURCE_LANGUAGE} into {$TARGET_LANGUAGE} above, preserving all code elements and special formatting while translating only the natural language text.
+I'll now translate the content from {$SOURCE_LANGUAGE} into {$TARGET_LANGUAGE}
 """
 
 def parse_html_content(html_content):
@@ -286,7 +282,7 @@ def extract_elements_from_text(text):
     
     return translated
 
-def translate_html(session_manager, session_id, html_content, source_language, target_language, max_chunk_size=10000):
+def translate_html(session_manager, session_id, html_content, source_language, target_language, max_chunk_size=8000):
     """
     Translate HTML content using LLM
     
