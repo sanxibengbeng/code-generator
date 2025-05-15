@@ -221,6 +221,7 @@ def init_app(app, session_manager):
         
         # Get HTML content to translate
         html_content = request.form.get('html', '')
+        source_lang = request.form.get('source_lang', DEFAULT_SOURCE_LANGUAGE)
         target_lang = request.form.get('target_lang', DEFAULT_TARGET_LANGUAGE)
         
         if not html_content:
@@ -257,7 +258,7 @@ def init_app(app, session_manager):
         # Start processing in a separate thread
         thread = threading.Thread(
             target=translate_html, 
-            args=(session_manager, session_id, html_content, target_lang)
+            args=(session_manager, session_id, html_content, source_lang, target_lang)
         )
         thread.start()
         

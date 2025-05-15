@@ -11,13 +11,13 @@ from uicodegen.core.model_configs import MODEL_CONFIGS
 from uicodegen.core.language_configs import get_language_name
 
 # HTML Translation-specific configuration
-HTML_TRANSLATION_PREFILL_PROMPT = "following is the translated content:"
+HTML_TRANSLATION_PREFILL_PROMPT = "here is the translated content:"
 
 HTML_TRANSLATION_PROMPT_BASE = """
-You are an expert professional translator specializing in {$TARGET_LANGUAGE}. Your task is to translate HTML content while preserving all code structure and formatting.
+You are an expert professional translator specializing in translating from {$SOURCE_LANGUAGE} to {$TARGET_LANGUAGE}. Your task is to translate HTML content while preserving all code structure and formatting.
 
 # TASK DESCRIPTION
-You need to translate the natural language text within HTML content from the source language to {$TARGET_LANGUAGE}, while maintaining all HTML tags, variables, and special formatting intact.
+You need to translate the natural language text within HTML content from {$SOURCE_LANGUAGE} to {$TARGET_LANGUAGE}, while maintaining all HTML tags, variables, and special formatting intact.
 
 # TRANSLATION RULES
 1. Only translate the natural language text within the numbered tags (e.g., <a0>, <a1>).
@@ -32,7 +32,7 @@ Let me break down my approach:
 2. For each segment, I'll:
    a. Analyze the content to distinguish between code/variables and natural language
    b. Preserve all code elements exactly as they appear
-   c. Translate only the natural language portions
+   c. Translate only the natural language portions from {$SOURCE_LANGUAGE} to {$TARGET_LANGUAGE}
    d. Ensure the translation maintains the original meaning and tone
 3. I'll verify that all variables and special formatting remain intact
 
@@ -43,7 +43,7 @@ Input:
 </content>
 
 My thought process:
-- I need to translate "Hello" and "Welcome to our website" to the target language
+- I need to translate "Hello" and "Welcome to our website" from English to Simplified Chinese 
 - I must keep "$USERNAME" unchanged as it's a variable
 - I need to maintain the exclamation mark and proper punctuation
 
@@ -51,9 +51,11 @@ Output:
 <a0>你好，$USERNAME！欢迎访问我们的网站。</a0>
 
 # CONTENT TO TRANSLATE
+<content>
 {$HTML_CONTENT}
+</content>
 
-I'll now translate the content above, preserving all code elements and special formatting while translating only the natural language text.
+I'll now translate the content from {$SOURCE_LANGUAGE} into {$TARGET_LANGUAGE} above, preserving all code elements and special formatting while translating only the natural language text.
 """
 
 def parse_html_content(html_content):
@@ -152,12 +154,13 @@ def replace_translated_content(html_content, translated_dict):
     # Generate new HTML content
     return soup.prettify()
 
-def translate_html_part(content, target_language, model_config, bedrock_client, use_streaming=False):
+def translate_html_part(content, source_language, target_language, model_config, bedrock_client, use_streaming=False):
     """
     Translate a part of HTML content
     
     Args:
         content: Dictionary of text nodes to translate
+        source_language: Source language for translation
         target_language: Target language for translation
         model_config: Model configuration
         bedrock_client: Bedrock client
@@ -179,7 +182,9 @@ def translate_html_part(content, target_language, model_config, bedrock_client, 
     text = ET.tostring(root).decode("utf-8")
     # Prepare prompt for translation
     prompt = HTML_TRANSLATION_PROMPT_BASE.replace("{$HTML_CONTENT}", text)
+    prompt = prompt.replace("{$SOURCE_LANGUAGE}", source_language)
     prompt = prompt.replace("{$TARGET_LANGUAGE}", target_language)
+    print(prompt)
     
     translated = {}
     metrics = {
@@ -281,7 +286,7 @@ def extract_elements_from_text(text):
     
     return translated
 
-def translate_html(session_manager, session_id, html_content, target_language, max_chunk_size=2000):
+def translate_html(session_manager, session_id, html_content, source_language, target_language, max_chunk_size=10000):
     """
     Translate HTML content using LLM
     
@@ -289,6 +294,7 @@ def translate_html(session_manager, session_id, html_content, target_language, m
         session_manager: Session manager instance
         session_id: Current session ID
         html_content: HTML content to translate
+        source_language: Source language
         target_language: Target language
         max_chunk_size: Maximum chunk size for translation
     """
@@ -318,7 +324,8 @@ def translate_html(session_manager, session_id, html_content, target_language, m
         # Create Bedrock client
         bedrock_client = get_bedrock_client()
         
-        # Get language name for prompt
+        # Get language names for prompt
+        source_lang_name = get_language_name(source_language, use_native=False)
         target_lang_name = get_language_name(target_language, use_native=False)
         
         # Update session status
@@ -378,6 +385,7 @@ def translate_html(session_manager, session_id, html_content, target_language, m
                 # Translate current chunk
                 chunk_translated, chunk_metrics = translate_html_part(
                     current_chunk, 
+                    source_lang_name,
                     target_lang_name, 
                     model_config, 
                     bedrock_client,
@@ -417,6 +425,7 @@ def translate_html(session_manager, session_id, html_content, target_language, m
             # Translate current chunk
             chunk_translated, chunk_metrics = translate_html_part(
                 current_chunk, 
+                source_lang_name,
                 target_lang_name, 
                 model_config, 
                 bedrock_client,
